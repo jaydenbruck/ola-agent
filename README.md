@@ -124,12 +124,9 @@ Thanks to Python, SwiftUI, FastAPI, Playwright, and OpenRouter.
 
 ## Limits
 
-LinkedIn sign-in is not demoed. The estate egress is a datacenter IP, and
-LinkedIn's anti-automation invalidates a valid session cookie replayed from it:
-the browser landed on `/login/` and the cookie was dropped. The image security
-check cannot be completed through the 2 fps takeover. The cookie-seed loader,
-`OLA_SEED_COOKIES` in `server/ola/tools/browser.py`, is in the repository and
-works from a residential IP; it is disabled on the demo estate.
+Signed phone delivery and real takeover verification remain pending. The local
+setup uses one shared bearer token. Browser sessions and personal facts stay
+in local data files.
 
 ## License
 
