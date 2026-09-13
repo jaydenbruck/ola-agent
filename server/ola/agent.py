@@ -247,6 +247,7 @@ class Agent:
                 job.result = OUT_OF_STEPS.get(job.lang, OUT_OF_STEPS["en"])
         except asyncio.CancelledError:
             job.state = "cancelled"
+            job.needs_you = None
             job.result = STOPPED.get(job.lang, STOPPED["en"])
             self.bus.emit(job.thread_id, {"type": "job.failed", "job_id": job.id, "reason": job.result})
             await self.registry.close_job(job.id)

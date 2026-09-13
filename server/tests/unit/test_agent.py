@@ -366,3 +366,25 @@ async def test_job_without_job_tools_fails_honestly(make_agent, bus):
     failed = next(e for e in events if e["type"] == "job.failed")
     assert failed["reason"] == "Ich habe gerade keinen Zugang zu Apps oder Websites."
     assert "job.done" not in types(events)
+
+
+async def test_cancel_while_waiting_clears_needs_you(make_agent, bus):
+    resume_calls: list[str] = []
+    reg = Registry()
+    reg.register_module(fake_browser(resume_calls))
+
+    def script(messages, tools):
+        if is_job(messages):
+            return Reply(tool_calls=[call("browser", cid="g", action="goto")])
+        if messages[-1]["role"] == "tool":
+            return "Ok."
+        return Reply(tool_calls=[call("spawn_job", title="Uber", instructions="x")])
+
+    agent = make_agent(script, reg)
+    agent.start_turn(T, "Uber bitte.")
+    await drain(bus, T, lambda h: "job.needs_you" in types(h))
+    job_id = next(iter(agent.jobs))
+    job = await agent.cancel(job_id)
+    assert job.state == "cancelled" and job.needs_you is None
+    assert agent.list_jobs(T, everything=True)[0]["needs_you"] is None
+    assert f"closed:{job_id}" in resume_calls and resume_calls[0] != job_id, "after_resume is not called on cancel"
