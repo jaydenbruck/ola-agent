@@ -71,16 +71,17 @@ python -m pip install -e ./server
 The planned server address is `http://localhost:8787`. See
 [server setup](server/README.md) and the commented [.env.example](.env.example).
 
-The fresh iOS app is available on `n3-app` at `f0354dc`; it has not merged to
+The fresh iOS app is available on `n3-app` at `3b2f156`; it has not merged to
 `main` yet. On that branch, open `app/Ola.xcodeproj` in Xcode, choose the Ola
 scheme and your signing team, then build for iOS 17 or later. In Settings, enter
 a server URL reachable from the phone and the same `OLA_TOKEN`. The default URL
 is `https://api.tryola.ai/agent/`; the app stores the URL and token in Keychain.
 
 The root `codemagic.yaml` defines core tests, a simulator build, and an unsigned
-device archive. The native build is blocked on GitHub passkey authorization
-for Codemagic access; the founder has been asked. No native build or phone
-acceptance is claimed.
+device archive. Native compilation and the app merge are pending D-8. Codemagic
+access currently requires GitHub passkey authorization; the founder has been
+asked, and D-8 has been asked to test a token/API alternative. No native build
+or phone acceptance is claimed.
 
 ## How we tested reliability
 
@@ -88,10 +89,20 @@ No reliability results have landed on `main` yet. The final README will quote
 counts from `RELIABILITY.md`, link `RELIABILITY.pdf`, and distinguish local fixture
 tests, real-model runs, and live-site journeys. No pass rate is claimed here.
 
-For the separate app commit `f0354dc`, N-3 reports 10 Linux Swift tests passed
-and one live test skipped, with 1,250 Swift lines including tests. These are
-portable core-test results, not native build evidence. Run them on a Swift 5.9+
-host with `swift test --package-path app` after checking out the app branch.
+For the separate app commit `3b2f156`, N-3 reports 1,287 Swift lines including
+tests and the package manifest. All six app sources passed `swiftc` syntax
+parsing, and all 11 core tests passed with zero failures or skips. One test
+feeds a captured real-model SSE response through the actual Swift parser and
+reducer. Syntax parsing does not type-check the app against Apple's SDKs.
+
+N-3's local server probe received chat acceptance and 27 SSE events, checked
+completion text and exact replay of the 26-event tail, verified rejection of a
+bad bearer token, and checked the jobs route. It used a harmless German text
+request without tools. This does not prove browser takeover or native rendering.
+
+On the app branch, run `python app/Tools/test_linux.py` for the Windows-to-WSL
+checks, or `swift test --package-path app` on a Swift 5.9+ host. Reproducing the
+live fixture requires the real-server probe documented in `app/README.md`.
 
 The planned rerun command, from the repository root with the server environment
 activated, is `python scripts/reliability.py`. Its final options and required
