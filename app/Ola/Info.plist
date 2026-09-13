@@ -9,7 +9,7 @@
 <key>CFBundleShortVersionString</key><string>1.0</string>
 <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
 <key>LSRequiresIPhoneOS</key><true/>
-<key>UILaunchScreen</key><dict/>
+<key>UILaunchScreen</key><dict><key>UIColorName</key><string>LaunchBackground</string></dict>
 <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
 <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
 <key>NSMicrophoneUsageDescription</key><string>Ola uses the microphone to write the message you dictate.</string>

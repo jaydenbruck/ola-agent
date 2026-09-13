@@ -10,7 +10,7 @@ export SIMCTL_CHILD_OLA_SMOKE_SERVER="${OLA_SMOKE_SERVER:-https://api.tryola.ai/
 if [ -n "$SIMCTL_CHILD_OLA_SMOKE_TOKEN" ]; then
   export SIMCTL_CHILD_OLA_SMOKE_PROMPT='Sag kurz Hallo auf Deutsch, mit einem fettgedruckten Wort und zwei Stichpunkten. Nutze keine Werkzeuge.'
 fi
-xcrun simctl launch "$device" ai.tryola.submission
+xcrun simctl launch "$device" ai.tryola.agent
 sleep 3
 xcrun simctl io "$device" screenshot build/screenshots/ola-open.png
 sleep 22
@@ -18,5 +18,5 @@ xcrun simctl io "$device" screenshot build/screenshots/ola-after.png
 if [ -n "$SIMCTL_CHILD_OLA_SMOKE_TOKEN" ]; then
   echo 'Captured the actual app with the real public server; inspect the screenshots before claiming success.'
 else
-  echo 'Captured unconfigured app/settings only; OLA_SMOKE_TOKEN was absent.'
+  echo 'Captured unconfigured empty chat; OLA_SMOKE_TOKEN was absent.'
 fi

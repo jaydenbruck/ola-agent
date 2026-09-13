@@ -21,7 +21,7 @@ struct OlaMark: View {
                 Capsule().frame(width: 4, height: blink ? 1 : 5)
                 Capsule().frame(width: 4, height: blink ? 1 : 5)
             }.foregroundStyle(.white)
-        }.frame(width: 34, height: 34).accessibilityLabel("Ola")
+        }.frame(width: 34, height: 34).accessibilityLabel("Ola").accessibilityIdentifier("ola-mark")
             .task(id: phase) {
                 blink = false
                 guard phase == .active, !reduceMotion else { return }
@@ -48,8 +48,10 @@ struct ChatView: View {
             VStack(spacing: 0) {
                 if !model.running.isEmpty { jobStrip }
                 if !model.connected {
-                    Text(model.connection.configured ? model.words("Verbindung wird hergestellt …", "Connecting …") : model.words("Verbinde Ola in den Einstellungen.", "Connect Ola in Settings."))
-                        .font(.footnote).foregroundStyle(Palette.secondary).padding(10)
+                    Button { settings = true } label: {
+                        Text(model.connection.configured ? model.words("Verbindung wird hergestellt …", "Connecting …") : model.words("Verbinde Ola in den Einstellungen.", "Connect Ola in Settings."))
+                            .font(.footnote).foregroundStyle(Palette.secondary).padding(10)
+                    }.buttonStyle(.plain)
                 }
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -57,6 +59,7 @@ struct ChatView: View {
                             if model.state.items.isEmpty {
                                 Text(model.words("Was hast du vor?", "What's on your mind?"))
                                     .font(.system(size: 28, weight: .medium)).padding(.top, 80).frame(maxWidth: .infinity)
+                                    .accessibilityIdentifier("empty-thread")
                             }
                             ForEach(model.state.items) { item in
                                 switch item {
@@ -81,7 +84,10 @@ struct ChatView: View {
                     }
                 }
             }
-            .background(Palette.ground)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Palette.ground.ignoresSafeArea())
+            .toolbarBackground(Palette.ground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom, spacing: 0) { Composer() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { OlaMark() }
@@ -99,7 +105,6 @@ struct ChatView: View {
             .alert(model.words("Hinweis", "Notice"), isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
                 Button("OK") { model.error = nil }
             } message: { Text(model.error ?? "") }
-            .onAppear { settings = !model.connection.configured }
             .onChange(of: model.connected) { _, connected in
                 #if DEBUG
                 if connected, !smokeSent, let prompt = ProcessInfo.processInfo.environment["OLA_SMOKE_PROMPT"], !prompt.isEmpty {
@@ -108,7 +113,7 @@ struct ChatView: View {
                 }
                 #endif
             }
-        }
+        }.background(Palette.ground.ignoresSafeArea())
     }
     private var jobStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -274,6 +279,7 @@ struct Composer: View {
                         .accessibilityLabel(model.words("Foto anhängen", "Attach photo"))
                     TextField(model.words("Nachricht an Ola", "Message Ola"), text: $model.draft, axis: .vertical)
                         .lineLimit(1...6).font(.body).accessibilityLabel(model.words("Nachricht", "Message"))
+                        .accessibilityIdentifier("composer")
                     Button {
                         model.voice.stop(); priorDraft = model.draft
                         model.voice.recording = true

@@ -5,7 +5,7 @@ import SwiftUI
 import UIKit
 
 struct Connection: Codable, Equatable {
-    var server = "https://api.tryola.ai/agent/"
+    var server = "https://api.tryola.ai/agent"
     var token = ""
     var baseURL: URL? {
         guard let url = URL(string: server), ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
@@ -20,7 +20,7 @@ struct Connection: Codable, Equatable {
 
 enum SecureSettings {
     private static var query: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "ai.tryola.submission",
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "ai.tryola.agent",
          kSecAttrAccount as String: "connection"]
     }
     static func read() -> Connection {

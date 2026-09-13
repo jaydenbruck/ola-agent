@@ -78,8 +78,9 @@ final class Dictation: ObservableObject {
         let speech = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0 == .authorized) }
         }
+        guard generation == session else { return }
         let microphone = await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { continuation.resume(returning: $0) }
+            AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
         guard generation == session else { return }
         guard speech && microphone else {
