@@ -102,7 +102,11 @@ SITE_FACTS: dict[str, dict[str, str]] = {
             "Fares without a sign-in: https://www.uber.com/global/de/price-estimate/ ; signed in: https://m.uber.com/go/home. "
             "'Abholort' (pickup) and 'Ziel' (destination) are suggestion pickers: use pick with the full street address "
             "and check the field then shows the picked place; typing alone leaves it empty. A place is always an address, "
-            "never coordinates. Fares appear once both fields are set."
+            "never coordinates. After both fields are set, 'Preise anzeigen' opens m.uber.com/go/product-selection with the "
+            "ride list (UberX, Comfort, ...); each ride's price and its arrival/pickup time (the ETA, e.g. 'in 6 Min.') sit "
+            "next to that ride once signed in (an unsigned profile shows the rides but hides price/ETA behind a sign-in). "
+            "Read the chosen ride's price and arrival time, then call confirm(title, price, arrival time) before booking; "
+            "book only after the member answers YES."
         ),
     },
     "lieferando.de": {
@@ -110,11 +114,19 @@ SITE_FACTS: dict[str, dict[str, str]] = {
         "cookie_reject": "Nur notwendige",
         "facts": (
             "The customer sign-in is 'Anmelden' in the header, or https://www.lieferando.de/login. The footer's "
-            "'Ein Restaurant anmelden' / partner links are the restaurant sign-up: never the way in. To order: open the "
-            "restaurant list for the place directly, https://www.lieferando.de/lieferservice/essen/<ort>-<plz> (e.g. dreieich-63303); "
-            "the start page's 'Ort suchen' panel is slow. Close the app-download dialog ('Schließen'). Open a restaurant "
-            "(links go to /speisekarte/...), tap the dish, add it to the cart ('In den Warenkorb'), stop before payment; the "
-            "exact delivery address is asked at checkout."
+            "'Ein Restaurant anmelden' / partner links are the restaurant sign-up: never the way in. Close the "
+            "app-download dialog ('Schließen') and the cookie banner ('Nur notwendige'). Go straight to a known "
+            "restaurant's menu at /speisekarte/<slug> (do not search); the start page's 'Ort suchen' panel is slow. "
+            "On the menu, open the Pizza section, tap the dish, add it to the cart ('In den Warenkorb'). The exact "
+            "delivery address is asked at checkout; read the total price and the delivery time there, call "
+            "confirm(title, price, delivery time) before placing, and place only after the member answers YES; "
+            "otherwise stop before payment. "
+            "Demo restaurant: 'Express Pizzeria Mozzarella' (Dieburger Straße 21, 63303 Dreieich-Offenthal), menu "
+            "https://www.lieferando.de/speisekarte/express-pizzeria-mozzarella-new , open Sun 17:30-22:00, free delivery "
+            "from 15 EUR; it delivers to Dieburger Straße 48a (same Offenthal district). The ham pizza is the "
+            "Prosciutto / Schinken pizza in the Pizza section (read its exact name and price off the menu; other pizzas "
+            "there are Margherita 7,50 EUR, Napoli 9,00 EUR, Funghi 9,00 EUR). For a ride+food request, set the food's "
+            "delivery time to match the ride's arrival time."
         ),
     },
     "kleinanzeigen.de": {
