@@ -17,17 +17,6 @@ import httpx
 log = logging.getLogger("ola.model")
 
 DEFAULT_MODEL = "x-ai/grok-4.5"
-
-
-def chat_reasoning(model_id: str) -> dict[str, Any] | None:
-    """The reasoning field for the chat turn, which must answer first and think least.
-    grok-4.5 cannot disable reasoning ("Reasoning is mandatory"); its lowest effort cut the first
-    word from ~2.5 s to ~1.7 s. grok-4.20 and gpt-5.4-mini answer fastest with no field at all.
-    OLA_CHAT_REASONING overrides: an effort name, or empty for no field."""
-    effort = os.environ.get("OLA_CHAT_REASONING")
-    if effort is None:
-        effort = "minimal" if "grok-4.5" in model_id else ""
-    return {"effort": effort} if effort else None
 BASE_URL = "https://openrouter.ai/api/v1"
 MAX_OUTPUT_TOKENS = 8000
 CUT_ARGUMENTS = "Your arguments were cut off before the end. Call again with short arguments."
@@ -117,7 +106,6 @@ class Model:
         tools: list[dict[str, Any]] | None = None,
         on_delta: OnDelta | None = None,
         max_tokens: int = MAX_OUTPUT_TOKENS,
-        reasoning: dict[str, Any] | None = None,
     ) -> Reply:
         body: dict[str, Any] = {
             "model": self.model,
@@ -125,8 +113,6 @@ class Model:
             "stream": True,
             "max_tokens": max_tokens,
         }
-        if reasoning:
-            body["reasoning"] = reasoning
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"

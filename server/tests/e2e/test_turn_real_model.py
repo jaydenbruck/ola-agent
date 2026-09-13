@@ -21,13 +21,6 @@ from ola.model import Model
 from ola.tools import Registry
 
 load_env()
-
-
-def turn_model() -> Model:
-    """The chat turn's model as deployed: OLA_TURN_MODEL, else the job model."""
-    return Model(model=os.environ.get("OLA_TURN_MODEL") or None)
-
-
 pytestmark = pytest.mark.skipif(not os.environ.get("OPENROUTER_API_KEY"), reason="no OPENROUTER_API_KEY")
 
 MACHINERY = re.compile(r"\b(tool|model|agent|job|browser|session|timeout|api|provider)\b", re.I)
@@ -67,7 +60,7 @@ def agent(tmp_path):
     mem = Memory(tmp_path / "facts.json")
     mem.remember("Wohnt in der Dieburger Straße 48a, 63303 Dreieich.")
     mem.remember("Language: English first, German is fine.")
-    a = Agent(Model(), EventBus(), mem, registry_with_lookup(calls), Attachments(tmp_path / "att"), turn_model=turn_model())
+    a = Agent(Model(), EventBus(), mem, registry_with_lookup(calls), Attachments(tmp_path / "att"))
     a.lookup_calls = calls  # type: ignore[attr-defined]
     return a
 

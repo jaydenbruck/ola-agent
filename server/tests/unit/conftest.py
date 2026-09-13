@@ -26,7 +26,7 @@ class FakeModel:
         self.script = script
         self.calls: list[tuple[list[dict[str, Any]], list[dict[str, Any]] | None]] = []
 
-    async def chat(self, messages, tools=None, on_delta=None, max_tokens=8000, **kwargs) -> Reply:
+    async def chat(self, messages, tools=None, on_delta=None, max_tokens=8000) -> Reply:
         self.calls.append((messages, tools))
         reply = self.script(messages, tools)
         if isinstance(reply, str):

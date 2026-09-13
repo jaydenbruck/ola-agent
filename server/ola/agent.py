@@ -20,7 +20,7 @@ from typing import Any
 from ola import prompt as prompts
 from ola.events import EventBus
 from ola.memory import Memory
-from ola.model import CUT_ARGUMENTS, Model, Reply, assistant_message, chat_reasoning, image_part, tool_result_message
+from ola.model import CUT_ARGUMENTS, Model, Reply, assistant_message, image_part, tool_result_message
 from ola.tools import REGISTRY, Context, Registry, ToolResult
 from ola.tools.reminders import Reminders
 
@@ -28,7 +28,6 @@ log = logging.getLogger("ola.agent")
 
 MAX_TURN_HOPS = 4
 MAX_JOB_STEPS = 40
-SILENT_TOOLS = {"spawn_job", "remind_at", "remember", "resume_job", "cancel_job"}  # their results need no second word
 HISTORY_MESSAGES = 40
 ATTACHMENTS_DIR = Path(os.environ.get("OLA_ATTACHMENTS_DIR") or Path(__file__).resolve().parent.parent / "attachments")
 
@@ -94,11 +93,8 @@ class Agent:
         registry: Registry = REGISTRY,
         attachments: Attachments | None = None,
         now: Any = None,
-        turn_model: Model | Any = None,
     ) -> None:
-        self.model = model  # jobs
-        self.turn_model = turn_model or model  # the chat turn and spoken results: the fast one
-        self.reasoning = chat_reasoning(getattr(self.turn_model, "model", "") or "")
+        self.model = model
         self.bus = bus
         self.memory = memory
         self.registry = registry
@@ -135,13 +131,9 @@ class Agent:
                 messages.append(assistant_message(reply))
                 if not reply.tool_calls:
                     break
-                all_silent_ok = bool(reply.text.strip())
                 for call in reply.tool_calls:
                     result = await self._run_tool(call, ctx, "turn")
                     messages.append(tool_result_message(call.id, result.text))
-                    all_silent_ok = all_silent_ok and result.ok and call.name in SILENT_TOOLS
-                if all_silent_ok:
-                    break  # the acknowledgement was spoken with the calls; no second model call
         except Exception as e:
             log.exception("turn %s failed", turn_id)
             fallback = FAILED.get(lang, FAILED["en"])
@@ -190,7 +182,7 @@ class Agent:
             self.bus.emit(thread_id, {"type": "assistant.delta", "turn_id": turn_id, "text": text})
 
         tools = self.registry.schemas(scope) if scope else None
-        return await self.turn_model.chat(messages, tools=tools, on_delta=on_delta, reasoning=self.reasoning)
+        return await self.model.chat(messages, tools=tools, on_delta=on_delta)
 
     async def _run_tool(self, call: Any, ctx: Context, scope: str) -> ToolResult:
         if call.cut or call.args() is None:
@@ -341,7 +333,10 @@ class Agent:
             if not instructions:
                 return "Error: instructions are empty."
             job = self.spawn_job(ctx.thread_id, title, instructions, ctx.lang)
-            return f"Started {job.id}: {title}. It reports back when done. Acknowledge in one short sentence if you have not yet."
+            return (
+                f"Started {job.id}: {title}. It reports back when done. If you have not acknowledged the member "
+                "yet, do it now in one short sentence; if you already did, answer with nothing."
+            )
 
         async def resume_job(args: dict[str, Any], ctx: Context) -> str:
             job_id = str(args.get("job_id", ""))
@@ -361,12 +356,12 @@ class Agent:
         obj = {"type": "object", "properties": {"job_id": {"type": "string"}}, "required": ["job_id"]}
         reg.register(
             "spawn_job",
-            "Start background work in an app, website or WhatsApp. Several can run at once.",
+            "Start background work that acts in an app, on a website or in WhatsApp. Several can run at once.",
             {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string", "description": "Short, member's language"},
-                    "instructions": {"type": "string", "description": "Everything the work needs, complete"},
+                    "title": {"type": "string", "description": "Short title in the member's language"},
+                    "instructions": {"type": "string", "description": "Everything the work needs to know, complete and concrete"},
                 },
                 "required": ["title", "instructions"],
             },
@@ -374,11 +369,11 @@ class Agent:
             scope="turn",
             with_ctx=True,
         )
-        reg.register("resume_job", "Continue work that waited for the member.", obj, resume_job, "turn", True)
+        reg.register("resume_job", "Continue work that waited for the member (sign-in, code).", obj, resume_job, "turn", True)
         reg.register("cancel_job", "Stop running work.", obj, cancel_job, "turn", True)
         reg.register(
             "remember",
-            "Keep one fact about the member for good.",
+            "Keep one fact about the member for good (name, home address, school, language, people).",
             {"type": "object", "properties": {"fact": {"type": "string"}}, "required": ["fact"]},
             remember,
             "turn",

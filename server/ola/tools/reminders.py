@@ -16,7 +16,11 @@ Speak = Callable[[str, str], Awaitable[None]]
 
 TOOL = {
     "name": "remind_at",
-    "description": "Say `text` to the member at `when`: ISO 8601 with offset, or 'in 20 minutes'.",
+    "description": (
+        "Say something to the member at a later time. `when` is an ISO 8601 time with offset "
+        "(2026-09-13T20:30:00+02:00) or a short relative form like 'in 20 minutes'. `text` is exactly "
+        "what Ola will say then, in the member's language."
+    ),
     "parameters": {
         "type": "object",
         "properties": {
@@ -74,7 +78,10 @@ class Reminders:
             if at is None:
                 return "Error: I could not read that time. Give an ISO 8601 time with offset."
             self.schedule(ctx.thread_id, at, str(args.get("text", "")).strip() or "Reminder.", gate=ctx.turn_done)
-            return f"Reminder set for {at.astimezone(BERLIN).strftime('%d.%m.%Y %H:%M:%S')}. Confirm in one short sentence if you have not yet."
+            return (
+                f"Reminder set for {at.astimezone(BERLIN).strftime('%d.%m.%Y %H:%M:%S')}. If you have not "
+                "acknowledged the member yet, do it now in one short sentence; if you already did, answer with nothing."
+            )
 
         registry.register(TOOL["name"], TOOL["description"], TOOL["parameters"], remind_at, scope="turn", with_ctx=True)
 

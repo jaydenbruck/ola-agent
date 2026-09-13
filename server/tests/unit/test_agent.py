@@ -389,29 +389,3 @@ async def test_cancel_while_waiting_clears_needs_you(make_agent, bus):
     assert job.state == "cancelled" and job.needs_you is None
     assert agent.list_jobs(T, everything=True)[0]["needs_you"] is None
     assert f"closed:{job_id}" in resume_calls and resume_calls[0] != job_id, "after_resume is not called on cancel"
-
-
-async def test_turn_model_is_separate_from_job_model(make_agent, bus, memory, tmp_path):
-    from ola.agent import Agent, Attachments
-    from tests.unit.conftest import FakeModel
-
-    def turn_script(messages, tools):
-        if messages[-1]["role"] == "tool" or "background work" in last_user(messages):
-            return "Fertig."
-        return Reply(text="Mach ich.", tool_calls=[call("spawn_job", title="T", instructions="x")])
-
-    def job_script(messages, tools):
-        return "Erledigt."
-
-    turn, job = FakeModel(turn_script), FakeModel(job_script)
-    turn.model, job.model = "x-ai/grok-4.20", "x-ai/grok-4.5"
-    agent = Agent(job, bus, memory, ping_registry(), Attachments(tmp_path / "a"), turn_model=turn)
-    assert agent.reasoning is None, "grok-4.20 gets no reasoning field"
-    agent.start_turn(T, "Mach das bitte.")
-    events = await drain(bus, T, lambda h: types(h).count("assistant.done") == 2)
-    spoken = [e["text"] for e in events if e["type"] == "assistant.done"]
-    assert spoken == ["Mach ich.", "Fertig."]
-    assert len(turn.calls) == 2, "the ack came with the tool call, so no second turn call; then one result turn"
-    assert len(job.calls) == 1 and "Task title:" in job.calls[0][0][0]["content"]
-    job.model = "x-ai/grok-4.5"
-    assert Agent(job, bus, memory, ping_registry(), Attachments(tmp_path / "b")).reasoning == {"effort": "minimal"}
