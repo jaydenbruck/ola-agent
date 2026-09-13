@@ -7,6 +7,7 @@ import html
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shutil
 import subprocess
@@ -122,6 +123,14 @@ def proves(case):
         "live_whatsapp_qr_takeover": "The real WhatsApp QR page provides a takeover request and image",
         "live_whatsapp_send_and_read": "A real send receipt and matching message ID confirm the chat round trip",
         "real_routes_parallel_takeover_resume": "Real HTTP and SSE carry two overlapping browser jobs, chat during takeover, sign-in input, resume and page results",
+        "two_jobs_in_parallel_spoken_in_german": "The real model starts two jobs and speaks their controlled lookup results in German",
+        "reminder_is_spoken_later": "The real model schedules a reminder that appears later in the conversation",
+        "english_request_gets_english_answer": "The real model answers an English request using stored test memory",
+        "model_signs_in_via_needs_you_takeover_and_resume": "The real model hands over a local sign-in form and reads the balance after the test member resumes",
+        "uber_price_from_home_to_school": "Attempts the requested Uber route; only a displayed fare passes",
+        "lieferando_to_the_cart": "Confirms a Margherita and price in the cart, then stops before payment",
+        "linkedin_lands_on_the_sign_in_page_never_the_join_page": "Reaches LinkedIn sign-in and offers takeover without entering credentials",
+        "kleinanzeigen_search_and_open_a_listing": "Supplemental browser check: opens a Kleinanzeigen listing and reads its price",
         "junit_outcomes": "Keeps passes, failures, skips and setup errors distinct",
         "secrets_redacted": "Removes configured secrets and access tokens from saved evidence",
         "environment_precedence": "Preserves explicit environment settings when loading a file",
@@ -142,6 +151,8 @@ def reports(data):
     overview = (f"{executed} tests ran to a test outcome. {counts['passed']} passed, {counts['failed']} failed, "
                 f"{counts['error']} errors, {counts['blocked']} blocked and {counts['skipped']} skipped. {len(cases)} evidence rows in total.")
     metadata = f"Tested commit {data['commit']}. Window {data['started']} to {data['ended']}."
+    if data.get("environment"):
+        metadata += f" Python {data['environment']['python']} on {data['environment']['platform']}; real-model setting {data['environment']['model']}."
     method = ("The runner executes the entire unit directory, then e2e, then live, using the same Python environment. "
               "Each row comes from pytest JUnit output, with parameter cases counted separately. WhatsApp checks exercise "
               "the browser wrapper against local pages. E2e checks use the real "
@@ -172,7 +183,7 @@ def reports(data):
             md.append("| " + " | ".join(escape(v) for v in values) + " |")
             rows.append("<tr>" + "".join("<td>" + html.escape(v) + "</td>" for v in values) + "</tr>")
         md.append("")
-        sections.append("<h2>Real-site outcomes</h2><table><thead><tr><th>Site</th><th>Observed outcome</th><th>Evidence</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
+        sections.append("<h2>Real-site outcomes</h2><table class='outcomes'><thead><tr><th>Site</th><th>Observed outcome</th><th>Evidence</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
     for group in dict.fromkeys(capability(c) for c in cases):
         rows = [c for c in cases if capability(c) == group]
         md += ["## " + group, "", "| What it proves | How it was run | Result |", "|---|---|---|"]
@@ -197,6 +208,7 @@ def reports(data):
     table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:8.5pt; }
     th { text-align:left; background:var(--ground); font-weight:600; } td,th { padding:2.4mm; border-bottom:1px solid var(--hairline); overflow-wrap:anywhere; vertical-align:top; }
     th:first-child { width:45%; } th:nth-child(2) { width:27%; } tr { break-inside:avoid; } thead { display:table-header-group; }
+    .outcomes th:first-child { width:14%; } .outcomes th:nth-child(2) { width:54%; }
     """
     document = ("<!doctype html><html lang='en'><meta charset='utf-8'><title>Ola reliability</title><style>" + css +
                 "</style><body><h1>Ola reliability</h1><p>Ola is a hackathon project by Jayden Bruck.</p><p class='summary'>" + html.escape(overview) +
@@ -247,7 +259,8 @@ def main():
         env = environment([*args.env_file, ROOT / "server" / ".env", ROOT.parent / ".env.ola-agent"])
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
-        data = {"commit": commit + (" + working-tree changes" if dirty else ""), "source_sha256": source_state(), "started": stamp(), "runs": []}
+        data = {"commit": commit + (" + working-tree changes" if dirty else ""), "source_sha256": source_state(), "started": stamp(), "runs": [],
+                "environment": {"python": platform.python_version(), "platform": platform.system(), "model": env.get("OLA_MODEL", "x-ai/grok-4.5")}}
         for suite in ("unit", "e2e", "live"):
             print("Running " + suite, flush=True)
             data["runs"].append(run_suite(suite, env, args.timeout))
