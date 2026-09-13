@@ -41,6 +41,8 @@ class ToolResult:
     step: str | None = None
     ok: bool = True
     needs_you: dict[str, str] | None = None
+    code: str | None = None  # additive: a browser tool may carry a WhatsApp link code for the app
+    code_hint: str | None = None
 
 
 @dataclass
@@ -176,6 +178,8 @@ def normalize(raw: Any) -> ToolResult:
             step=getattr(raw, "step", None),
             ok=bool(getattr(raw, "ok", True)),
             needs_you=getattr(raw, "needs_you", None),
+            code=getattr(raw, "code", None),
+            code_hint=getattr(raw, "code_hint", None),
         )
     return ToolResult(text=json.dumps(raw, ensure_ascii=False, default=str))
 

@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Link with phone number</title><link rel="stylesheet" href="style.css">
+<style>.code{display:flex;gap:6px;margin:16px 0}.code span{display:inline-flex;align-items:center;justify-content:center;width:34px;height:44px;border:1px solid #14532d;border-radius:8px;font-size:22px;font-weight:700}</style>
+</head>
+<body>
+<header><strong>WhatsApp</strong></header>
+<main>
+<h1>Enter code on phone</h1>
+<p>Open WhatsApp on your phone and enter this code to link the device.</p>
+<div class="code" id="link-code" aria-label="Link code" role="group"></div>
+<p>Steps: Settings, Linked Devices, Link a Device, Link with phone number instead.</p>
+<button id="rotate">Rotate (simulate WhatsApp)</button>
+<script>
+const CODES = ["ABCD2345", "WXYZ7788", "QRST9012"];
+let i = 0;
+function render(code){
+  const box = document.getElementById('link-code'); box.innerHTML = '';
+  for (const ch of code){ const s = document.createElement('span'); s.textContent = ch; box.appendChild(s); }
+}
+render(CODES[0]);
+document.getElementById('rotate').onclick = () => { i = (i + 1) % CODES.length; render(CODES[i]); };
+</script>
+</main>
+</body></html>

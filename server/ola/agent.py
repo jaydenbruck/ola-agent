@@ -241,6 +241,8 @@ class Agent:
                     frame = self.registry.frame_url(job.id)
                     if frame:
                         event["frame_url"] = frame
+                    if getattr(result, "code", None):  # additive: WhatsApp link code, refreshed as it rotates
+                        event["code"] = result.code
                     self.bus.emit(job.thread_id, event)
                     if result.needs_you:
                         result = await self._wait_for_member(job, ctx, result.needs_you)
@@ -272,6 +274,9 @@ class Agent:
     async def _wait_for_member(self, job: Job, ctx: Context, needs: dict[str, str]) -> ToolResult:
         job.state = "needs_you"
         job.needs_you = {"reason": str(needs.get("reason", "")), "url": str(needs.get("url", ""))}
+        for _k in ("code", "code_hint"):  # additive: carried into the event and GET /jobs rows; cleared on resume
+            if needs.get(_k):
+                job.needs_you[_k] = str(needs[_k])
         job.resume_event.clear()
         self.bus.emit(job.thread_id, {"type": "job.needs_you", "job_id": job.id, **job.needs_you})
         await job.resume_event.wait()

@@ -166,6 +166,8 @@ class BrowserResult:
     ok: bool = True
     needs_you: Optional[dict[str, str]] = None
     url: str = ""
+    code: Optional[str] = None  # WhatsApp Web link code (XXXX-XXXX), when the code screen is showing
+    code_hint: Optional[str] = None
 
 
 # --------------------------------------------------------------------------- in-page scripts
@@ -714,6 +716,59 @@ async def _screenshot(s: _Session) -> Optional[bytes]:
     return s.frame
 
 
+# WhatsApp Web's "Link with phone number" screen shows an 8-character code the member types into
+# WhatsApp on their phone. It is rendered as a row of single-character cells (and sometimes carried
+# on a [data-link-code] attribute). Read it, join, uppercase, group into fours (XXXX-XXXX) so the
+# app can show it cleanly and copyably instead of the member reading it off the takeover frame. The
+# code is never logged; the member's own phone number is never typed by the tool.
+LINK_CODE_JS = r"""
+() => {
+  const clean = (t) => String(t || '').replace(/\s+/g, '').trim();
+  const a = document.querySelector('[data-link-code]');
+  if (a) { const v = clean(a.getAttribute('data-link-code')); if (/^[a-z0-9]{6,12}$/i.test(v)) return v; }
+  let best = null;
+  for (const el of document.querySelectorAll('div, section, ul, ol, [role=group], [role=list]')) {
+    const kids = [...el.children].filter((c) => { const r = c.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    if (kids.length < 6 || kids.length > 14) continue;
+    const texts = kids.map((k) => clean(k.innerText || k.textContent));
+    if (!texts.every((t) => /^[a-z0-9]$/i.test(t))) continue;  // every cell is exactly one alphanumeric char
+    const joined = texts.join('');
+    if (!best || joined.length > best.length) best = joined;
+  }
+  return best;
+}
+"""
+
+
+def _is_whatsapp(url: str) -> bool:
+    return (_host(url) or "").lower() == "web.whatsapp.com"
+
+
+async def _whatsapp_link_code(page: Any) -> Optional[str]:
+    """The link code on WhatsApp Web's phone-number screen, formatted XXXX-XXXX, or None. Never
+    logged."""
+    try:
+        raw = await page.evaluate(LINK_CODE_JS)
+    except Exception:  # noqa: BLE001
+        return None
+    if not raw:
+        return None
+    code = re.sub(r"[^A-Za-z0-9]", "", str(raw)).upper()
+    if not (6 <= len(code) <= 12):
+        return None
+    return "-".join(code[i:i + 4] for i in range(0, len(code), 4))
+
+
+def _code_hint(lang: str) -> str:
+    """One line telling the member where to type the code. English by default; German when the
+    member writes German."""
+    if str(lang).lower().startswith("de"):
+        return ("In WhatsApp: Einstellungen → Verknüpfte Geräte → Gerät hinzufügen → "
+                "Stattdessen mit Telefonnummer verknüpfen, dann diesen Code eingeben.")
+    return ("In WhatsApp: Settings > Linked Devices > Link a Device > Link with phone number "
+            "instead, then enter this code.")
+
+
 def _host(url: str) -> str:
     try:
         return (urlsplit(url).hostname or "").removeprefix("www.")
@@ -1215,12 +1270,19 @@ async def _run(s: _Session, action: str, args: dict[str, Any], resolver: Optiona
         reason = str(args.get("reason") or "").strip()
         snap = await _observe(s)
         url = str(snap.get("url") or s.page.url)
+        need: dict[str, str] = {"reason": reason or ("Bitte übernimm kurz." if lang.startswith("de") else "Please take over for a moment."), "url": url}
+        code = await _whatsapp_link_code(s.page) if _is_whatsapp(url) else None
+        hint = None
+        if code:
+            hint = _code_hint(lang)
+            need["code"], need["code_hint"] = code, hint
         text = format_page(snap, note="The member is on this page now. You get the page again when they are done; then continue.")
-        return BrowserResult(text, s.model_image, _step(lang, "needs_you", True, reason=reason), ok=True, needs_you={"reason": reason or ("Bitte übernimm kurz." if lang.startswith("de") else "Please take over for a moment."), "url": url}, url=url)
+        return BrowserResult(text, s.model_image, _step(lang, "needs_you", True, reason=reason), ok=True, needs_you=need, url=url, code=code, code_hint=hint)
     snap = await _observe(s)
     if not ok:
         note = f"ACTION FAILED: {note}"
-    return BrowserResult(format_page(snap, note=note, full_text=full_text), s.model_image, _step(lang, action, ok, **step_fields), ok=ok, url=str(snap.get("url") or ""))
+    code = await _whatsapp_link_code(s.page) if _is_whatsapp(str(snap.get("url") or "")) else None
+    return BrowserResult(format_page(snap, note=note, full_text=full_text), s.model_image, _step(lang, action, ok, **step_fields), ok=ok, url=str(snap.get("url") or ""), code=code)
 
 
 async def after_resume(job_id: str) -> BrowserResult:
