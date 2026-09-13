@@ -79,7 +79,7 @@ def create_app(
     def current() -> Agent:
         return app.state.agent
 
-    @app.get("/health", dependencies=[Depends(auth)])
+    @app.get("/health")
     async def health() -> dict[str, Any]:
         model = current().model
         return {"ok": True, "model": getattr(model, "model", "fake"), "tools": list(registry.tools)}

@@ -349,3 +349,20 @@ async def test_failed_job_is_spoken_honestly(make_agent, bus):
     assert failed["reason"] == "Das hat nicht geklappt."
     assert "did not succeed" in spoken_note[0]
     assert events[-1]["text"] == "Das hat leider nicht geklappt."
+
+
+async def test_job_without_job_tools_fails_honestly(make_agent, bus):
+    def script(messages, tools):
+        if "background work" in last_user(messages):
+            assert "did not succeed" in last_user(messages) and "keinen Zugang" in last_user(messages)
+            return "Ich komme gerade nicht an Lieferando ran."
+        if messages[-1]["role"] == "tool":
+            return "Mach ich."
+        return Reply(tool_calls=[call("spawn_job", title="Pizza", instructions="Bestell eine Pizza.")])
+
+    agent = make_agent(script, Registry())
+    agent.start_turn(T, "Bestell mir eine Pizza.")
+    events = await drain(bus, T, lambda h: types(h).count("assistant.done") == 2)
+    failed = next(e for e in events if e["type"] == "job.failed")
+    assert failed["reason"] == "Ich habe gerade keinen Zugang zu Apps oder Websites."
+    assert "job.done" not in types(events)

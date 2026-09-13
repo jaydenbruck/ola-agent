@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -28,11 +29,12 @@ log = logging.getLogger("ola.agent")
 MAX_TURN_HOPS = 4
 MAX_JOB_STEPS = 40
 HISTORY_MESSAGES = 40
-ATTACHMENTS_DIR = Path(__file__).resolve().parent.parent / "attachments"
+ATTACHMENTS_DIR = Path(os.environ.get("OLA_ATTACHMENTS_DIR") or Path(__file__).resolve().parent.parent / "attachments")
 
 STOPPED = {"de": "Gestoppt.", "en": "Stopped."}
 FAILED = {"de": "Das hat nicht geklappt.", "en": "That did not work."}
 OUT_OF_STEPS = {"de": "Ich bin nicht weitergekommen.", "en": "I could not get further."}
+NO_TOOLS = {"de": "Ich habe gerade keinen Zugang zu Apps oder Websites.", "en": "I have no access to apps or websites right now."}
 
 
 class Attachments:
@@ -122,8 +124,9 @@ class Agent:
         spoken = ""
         try:
             for _hop in range(MAX_TURN_HOPS):
-                reply = await self._chat(messages, "turn", thread_id, turn_id)
-                spoken += reply.text
+                lead = "\n" if spoken and not spoken.endswith("\n") else ""
+                reply = await self._chat(messages, "turn", thread_id, turn_id, lead)
+                spoken += (lead if reply.text else "") + reply.text
                 messages.append(assistant_message(reply))
                 if not reply.tool_calls:
                     break
@@ -167,8 +170,13 @@ class Agent:
         self.bus.emit(job.thread_id, {"type": "assistant.done", "turn_id": turn_id, "text": spoken})
         history.append({"role": "assistant", "content": spoken})
 
-    async def _chat(self, messages: list[dict[str, Any]], scope: str | None, thread_id: str, turn_id: str) -> Reply:
+    async def _chat(self, messages: list[dict[str, Any]], scope: str | None, thread_id: str, turn_id: str, lead: str = "") -> Reply:
+        """One model call; `lead` is emitted before the first delta so two spoken hops do not run together."""
+        pending = [lead]
+
         def on_delta(text: str) -> None:
+            if pending[0]:
+                text, pending[0] = pending[0] + text, ""
             self.bus.emit(thread_id, {"type": "assistant.delta", "turn_id": turn_id, "text": text})
 
         tools = self.registry.schemas(scope) if scope else None
@@ -214,6 +222,8 @@ class Agent:
         ]
         outcome = "failed"
         try:
+            if not self.registry.schemas("job"):
+                raise NoTools()
             for _step in range(MAX_JOB_STEPS):
                 reply = await self.model.chat(messages, tools=self.registry.schemas("job"))
                 messages.append(assistant_message(reply))
@@ -241,6 +251,8 @@ class Agent:
             self.bus.emit(job.thread_id, {"type": "job.failed", "job_id": job.id, "reason": job.result})
             await self.registry.close_job(job.id)
             return
+        except NoTools:
+            job.result = NO_TOOLS.get(job.lang, NO_TOOLS["en"])
         except Exception as e:
             log.exception("job %s failed", job.id)
             job.result = FAILED.get(job.lang, FAILED["en"])
@@ -313,7 +325,10 @@ class Agent:
             if not instructions:
                 return "Error: instructions are empty."
             job = self.spawn_job(ctx.thread_id, title, instructions, ctx.lang)
-            return f"Started {job.id}: {title}. It reports back when done; answer the member now in one short sentence."
+            return (
+                f"Started {job.id}: {title}. It reports back when done. If you have not acknowledged the member "
+                "yet, do it now in one short sentence; if you already did, answer with nothing."
+            )
 
         async def resume_job(args: dict[str, Any], ctx: Context) -> str:
             job_id = str(args.get("job_id", ""))
@@ -357,6 +372,10 @@ class Agent:
             True,
         )
         self.reminders.register(reg)
+
+
+class NoTools(RuntimeError):
+    """A job cannot act: no job tools are registered (no browser, no WhatsApp)."""
 
 
 def describe_step(name: str, args: dict[str, Any]) -> str:

@@ -107,13 +107,12 @@ def read_events(client, params=None, headers=None, until="job.done"):
 
 
 def test_bearer_on_every_route(client):
-    routes = [("GET", "/health"), ("POST", "/chat"), ("GET", "/events/t"), ("GET", "/jobs"),
+    routes = [("POST", "/chat"), ("GET", "/events/t"), ("GET", "/jobs"),
               ("POST", "/jobs/x/resume"), ("POST", "/jobs/x/cancel"), ("POST", "/attachments")]
     for method, path in routes:
         r = client.request(method, path)
         assert r.status_code == 401 and r.json() == {"detail": "unauthorized"}, path
-    assert client.get("/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
-    r = client.get("/health", headers=H)
+    r = client.get("/health")
     assert r.status_code == 200 and r.json()["ok"] is True and "browser" in r.json()["tools"]
 
 

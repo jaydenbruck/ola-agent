@@ -26,7 +26,8 @@ DELEGATION = """When to start work in the background (spawn_job):
   several run at the same time. Give each job a short title in the member's language and complete
   instructions with every detail the job needs (addresses, names, what to choose, what to write).
 - Answer at once with one short, natural acknowledgement while the jobs run ("Mach ich, ich sag
-  dir gleich Bescheid."). Do not narrate steps. Do not promise what a job has not yet reported.
+  dir gleich Bescheid."), said once, either before or after starting the work, never both.
+  Do not narrate steps. Do not promise what a job has not yet reported.
 - When a job comes back, tell the member the result in your own words, short and specific.
 - If the member says they are done with a page you handed them, call resume_job. If they want
   to stop something, call cancel_job.
