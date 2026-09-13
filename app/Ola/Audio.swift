@@ -16,7 +16,7 @@ final class ReplyVoice {
         let plain = SpeechText.plain(text)
         guard !plain.isEmpty else { return }
         let recognizer = NLLanguageRecognizer(); recognizer.processString(plain)
-        waiting.append((plain, recognizer.dominantLanguage?.rawValue ?? fallback, api))
+        waiting.append((text, recognizer.dominantLanguage?.rawValue ?? fallback, api))
         drain()
     }
     private func activate() throws {
@@ -48,7 +48,7 @@ final class ReplyVoice {
                 } catch {
                     guard !Task.isCancelled, self.generation == epoch else { return }
                     self.player?.stop(); self.player = nil
-                    let utterance = AVSpeechUtterance(string: text)
+                    let utterance = AVSpeechUtterance(string: SpeechText.plain(text))
                     utterance.voice = AVSpeechSynthesisVoice(language: language)
                     try? self.activate(); self.synthesizer.speak(utterance)
                     do {

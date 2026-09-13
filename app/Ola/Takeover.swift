@@ -112,6 +112,9 @@ struct TakeoverView: View {
                 Button { keyboard.toggle(); typing = keyboard } label: { Image(systemName: "keyboard").frame(width: 44, height: 44) }
                     .accessibilityLabel(model.words("Tastatur", "Keyboard"))
             }.padding(.horizontal, 8)
+            if currentJob.state.active, let code = currentJob.code, !code.isEmpty {
+                LinkCodePanel(code: code, hint: currentJob.codeHint).padding(.horizontal, 14)
+            }
             HStack {
                 Button(model.words("Fertig, mach weiter", "Done, carry on")) {
                     if !typed.isEmpty { sendTyped() }
@@ -171,7 +174,7 @@ struct TakeoverView: View {
         .task(id: currentJob.frameURL) {
             if phase == .active, let path = currentJob.frameURL { await session.refresh(api: model.api, path: path) }
         }
-        .onChange(of: session.resumed) { _, resumed in if resumed { Task { await model.refreshJobs() }; dismiss() } }
+        .onChange(of: session.resumed) { _, resumed in if resumed { model.didResumeJob(job.id); Task { await model.refreshJobs() }; dismiss() } }
         .onDisappear { typed = ""; session.close() }
     }
     private func input(_ body: [String: Any]) { session.input(api: model.api, jobID: job.id, body: body, language: model.language) }

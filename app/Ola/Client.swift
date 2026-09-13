@@ -101,7 +101,7 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     @Published var running: [JobCard] = []
     @Published var overview: [JobCard] = []
-    @Published var language = UserDefaults.standard.string(forKey: "language") ?? "de" {
+    @Published var language = UserDefaults.standard.string(forKey: "language") ?? "en" {
         didSet { UserDefaults.standard.set(language, forKey: "language") }
     }
     @Published var speaker = UserDefaults.standard.bool(forKey: "speaker") {
@@ -136,6 +136,10 @@ final class AppModel: ObservableObject {
         }
         #endif
         restore()
+        if !UserDefaults.standard.bool(forKey: "english-empty-chat-20260913") {
+            language = "en"; UserDefaults.standard.set("en", forKey: "language")
+            resetThread(); UserDefaults.standard.set(true, forKey: "english-empty-chat-20260913")
+        }
         #if DEBUG
         if let thread = env["OLA_SMOKE_THREAD_ID"], !thread.isEmpty { threadID = thread; state = ThreadState() }
         #endif
@@ -173,11 +177,21 @@ final class AppModel: ObservableObject {
     }
     func newChat() {
         stop()
+        resetThread(); start()
+    }
+    func didResumeJob(_ id: String) {
+        state.resumed(id)
+        for i in overview.indices where overview[i].id == id {
+            overview[i].state = .running; overview[i].code = nil; overview[i].codeHint = nil
+        }
+        running = overview.filter { $0.state.active }; scheduleSave()
+    }
+    private func resetThread() {
         threadID = UUID().uuidString
         UserDefaults.standard.set(threadID, forKey: "thread-" + connection.storageKey)
         state = ThreadState(); draft = ""; attachments = []; running = []; overview = []
         error = nil; connectionIssue = nil
-        persist(); start()
+        persist()
     }
     func start() {
         guard stream == nil, connection.configured else { return }

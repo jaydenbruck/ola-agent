@@ -235,6 +235,25 @@ struct SelectableText: UIViewRepresentable {
     }
 }
 
+struct LinkCodePanel: View {
+    @EnvironmentObject private var model: AppModel
+    let code: String
+    let hint: String?
+    @State private var copied = false
+    @State private var copyID = UUID()
+    var body: some View {
+        VStack(spacing: 8) {
+            Button(action: copyCode) { Text(code).font(.system(size: 30, weight: .semibold, design: .monospaced)).tracking(3).minimumScaleFactor(0.7).lineLimit(1) }
+                .accessibilityLabel(model.words("Code kopieren", "Copy code") + ": " + code)
+            Button(copied ? model.words("Kopiert", "Copied") : model.words("Kopieren", "Copy"), action: copyCode).font(.subheadline)
+            if let hint, !hint.isEmpty { Text(hint).font(.footnote).foregroundStyle(Palette.secondary).multilineTextAlignment(.center) }
+        }.frame(maxWidth: .infinity).padding(14).background(Palette.ground, in: RoundedRectangle(cornerRadius: 16))
+            .onChange(of: code) { _, _ in copied = false; copyID = UUID() }
+            .task(id: copyID) { try? await Task.sleep(for: .seconds(2)); if !Task.isCancelled { copied = false } }
+    }
+    private func copyCode() { UIPasteboard.general.string = code; copied = true; copyID = UUID() }
+}
+
 struct JobCardView: View {
     @EnvironmentObject private var model: AppModel
     let job: JobCard
@@ -247,6 +266,7 @@ struct JobCardView: View {
                 Text(job.state.label(model.language)).font(.caption).foregroundStyle(Palette.secondary)
             }
             if !job.step.isEmpty { Text(job.step).font(.subheadline).textSelection(.enabled) }
+            if job.state.active, let code = job.code, !code.isEmpty { LinkCodePanel(code: code, hint: job.codeHint) }
             if let path = job.frameURL {
                 Button(action: open) { AuthenticatedFrame(path: path).frame(height: 180).clipped() }
                     .buttonStyle(.plain).accessibilityLabel(model.words("Bildschirm öffnen", "Open screen"))

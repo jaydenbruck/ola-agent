@@ -79,6 +79,8 @@ struct WireEvent: Codable, Equatable {
     var reason: String?
     var url: String?
     var result: String?
+    var code: String?
+    var code_hint: String?
 }
 
 enum JobState: String, Codable {
@@ -100,6 +102,8 @@ struct JobCard: Codable, Identifiable, Equatable {
     var state: JobState = .running
     var step = ""
     var frameURL: String?
+    var code: String?
+    var codeHint: String?
 }
 
 struct JobSnapshot: Decodable {
@@ -109,6 +113,10 @@ struct JobSnapshot: Decodable {
     var last_step: String?
     var frame_url: String?
     var thread_id: String?
+    var code: String?
+    var code_hint: String?
+    var needs_you: CodeInfo?
+    struct CodeInfo: Decodable { var code: String?; var code_hint: String? }
 
     var card: JobCard {
         let status: JobState
@@ -118,7 +126,8 @@ struct JobSnapshot: Decodable {
         case "failed", "cancelled", "canceled": status = .failed
         default: status = .running
         }
-        return JobCard(id: job_id, title: title, state: status, step: last_step ?? "", frameURL: frame_url)
+        return JobCard(id: job_id, title: title, state: status, step: last_step ?? "", frameURL: frame_url,
+                       code: status.active ? (code ?? needs_you?.code) : nil, codeHint: code_hint ?? needs_you?.code_hint)
     }
 }
 
@@ -184,12 +193,25 @@ struct ThreadState: Codable, Equatable {
         case "job.failed": jobs[index].state = .failed; jobs[index].step = event.reason ?? ""
         default: break
         }
+        if let code = event.code, ["job.step", "job.needs_you"].contains(event.type) {
+            jobs[index].code = code.isEmpty ? nil : code
+            jobs[index].codeHint = event.code_hint ?? jobs[index].codeHint
+        }
+        if !jobs[index].state.active { jobs[index].code = nil; jobs[index].codeHint = nil }
         return nil
     }
 
     mutating func restore(_ card: JobCard) {
-        if let index = jobs.firstIndex(where: { $0.id == card.id }) { jobs[index] = card }
+        if let index = jobs.firstIndex(where: { $0.id == card.id }) {
+            var latest = card
+            if latest.state == .needsYou && latest.code == nil { latest.code = jobs[index].code; latest.codeHint = latest.codeHint ?? jobs[index].codeHint }
+            jobs[index] = latest
+        }
         else { jobs.append(card); items.append(.job(card.id)) }
+    }
+    mutating func resumed(_ id: String) {
+        guard let index = jobs.firstIndex(where: { $0.id == id }), jobs[index].state.active else { return }
+        jobs[index].state = .running; jobs[index].code = nil; jobs[index].codeHint = nil
     }
 }
 

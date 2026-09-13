@@ -2,6 +2,29 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testLinkCodeRotatesSurvivesWaitingSnapshotsAndClears() throws {
+        var state = ThreadState()
+        let event = try JSONDecoder().decode(WireEvent.self, from: Data(#"{"type":"job.needs_you","job_id":"wa","code":"ABCD-1234","code_hint":"Enter this code in WhatsApp."}"#.utf8))
+        state.reduce(event)
+        XCTAssertEqual(state.jobs[0].code, "ABCD-1234")
+        XCTAssertEqual(state.jobs[0].codeHint, "Enter this code in WhatsApp.")
+        state.restore(JobCard(id: "wa", title: "WhatsApp", state: .needsYou))
+        XCTAssertEqual(state.jobs[0].code, "ABCD-1234")
+        state.reduce(WireEvent(type: "job.step", job_id: "wa", code: "WXYZ-5678"))
+        XCTAssertEqual(state.jobs[0].code, "WXYZ-5678")
+        state.resumed("wa")
+        XCTAssertNil(state.jobs[0].code)
+        XCTAssertEqual(state.jobs[0].state.label("en"), "running")
+        state.reduce(event)
+        state.restore(JobCard(id: "wa", title: "WhatsApp", state: .running))
+        XCTAssertNil(state.jobs[0].code)
+        state.reduce(event)
+        state.reduce(WireEvent(type: "job.done", job_id: "wa"))
+        state.reduce(event)
+        XCTAssertNil(state.jobs[0].code)
+        let row = try JSONDecoder().decode(JobSnapshot.self, from: Data(#"{"job_id":"wa","title":"WhatsApp","state":"needs_you","needs_you":{"code":"ABCD-1234","code_hint":"Open WhatsApp"}}"#.utf8))
+        XCTAssertEqual(row.card.code, "ABCD-1234")
+    }
     func testSpeechRemovesMarkdownWithoutDroppingWords() {
         XCTAssertEqual(SpeechText.plain("# Hallo\n- **Guten** Tag\n1. [Hier](https://example.com)\n```swift\nCode\n```"), "Hallo\nGuten Tag\nHier")
         XCTAssertEqual(SpeechText.plain(" **Hello** and _welcome_! "), "Hello and welcome!")
