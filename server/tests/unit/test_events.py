@@ -21,6 +21,23 @@ def test_seq_per_thread_and_history():
     assert [e["seq"] for e in bus.history("a")] == [5, 6, 7], "bounded buffer keeps the newest"
 
 
+async def test_close_all_ends_every_stream():
+    bus = EventBus()
+    bus.emit("t", {"type": "one"})
+    got: list[str] = []
+
+    async def reader():
+        async for chunk in bus.stream("t", keepalive=5):
+            got.append(chunk)
+
+    task = asyncio.create_task(reader())
+    await asyncio.sleep(0.05)
+    assert bus.close_all() == 1
+    await asyncio.wait_for(task, 2)
+    assert got[0] == ": connected\n\n" and got[-1] == ": bye\n\n" and bus._subs == {}
+    assert bus.close_all() == 0
+
+
 def test_sse_framing():
     text = sse({"type": "assistant.delta", "seq": 7, "text": "hä"})
     assert text.startswith("id: 7\ndata: ") and text.endswith("\n\n")

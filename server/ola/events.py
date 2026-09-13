@@ -10,6 +10,7 @@ from typing import Any, AsyncIterator
 
 KEEPALIVE_SECONDS = 15.0
 HISTORY = 500
+CLOSE: dict[str, Any] = {"type": "close"}  # sentinel put on every queue by close_all()
 
 
 class EventBus:
@@ -36,6 +37,15 @@ class EventBus:
         self._subs.setdefault(thread_id, set()).add(q)
         return q
 
+    def close_all(self) -> int:
+        """End every open stream now (deploy or shutdown); returns how many were told to stop."""
+        n = 0
+        for subs in list(self._subs.values()):
+            for q in list(subs):
+                q.put_nowait(CLOSE)
+                n += 1
+        return n
+
     def unsubscribe(self, thread_id: str, q: asyncio.Queue[dict[str, Any]]) -> None:
         subs = self._subs.get(thread_id)
         if subs:
@@ -60,6 +70,9 @@ class EventBus:
                 except asyncio.TimeoutError:
                     yield ": keep\n\n"
                     continue
+                if e is CLOSE:
+                    yield ": bye\n\n"  # the server is going down; the app reconnects with Last-Event-ID
+                    return
                 if e["seq"] <= last:
                     continue
                 last = e["seq"]

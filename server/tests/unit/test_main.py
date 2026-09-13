@@ -144,6 +144,53 @@ def test_chat_events_jobs_resume(client):
     assert client.get("/jobs", params={"thread_id": "t", "all": "true"}, headers=H).json()[0]["state"] == "done"
 
 
+def test_server_stops_without_waiting_on_streams():
+    """A live server with an open SSE stream stops within seconds of the exit signal: the stream
+    ends with ': bye' and the process does not wait on it. The signal is delivered the way uvicorn
+    does on Linux (handle_exit on the loop thread)."""
+    import signal
+
+    from ola.main import Server
+
+    bus = EventBus()
+    app = create_app(bus=bus, token="x", load_optional_tools=False)
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    srv = Server(app, bus, "127.0.0.1", port, "")
+    assert srv.server.config.timeout_graceful_shutdown == 10
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(250):
+        if srv.server.started:
+            break
+        time.sleep(0.02)
+    assert srv.server.started
+    got: list[str] = []
+
+    def reader():
+        with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=None) as c:
+            with c.stream("GET", "/events/t", headers={"Authorization": "Bearer x"}) as r:
+                for line in r.iter_lines():
+                    got.append(line)
+
+    rt = threading.Thread(target=reader, daemon=True)
+    rt.start()
+    for _ in range(250):
+        if got:
+            break
+        time.sleep(0.02)
+    assert got and got[0] == ": connected"
+    t0 = time.monotonic()
+    app.state.loop.call_soon_threadsafe(srv.server.handle_exit, signal.SIGTERM, None)
+    thread.join(timeout=8)
+    took = time.monotonic() - t0
+    rt.join(timeout=3)
+    assert not thread.is_alive(), "the server did not stop"
+    assert took < 3, f"stop took {took:.1f}s"
+    assert ": bye" in got and not rt.is_alive(), got
+
+
 def test_cancel_and_attachments(client):
     client.post("/chat", json={"thread_id": "c", "text": "Uber bitte."}, headers=H)
     rows = wait_jobs(client, "c", lambda rows: bool(rows))

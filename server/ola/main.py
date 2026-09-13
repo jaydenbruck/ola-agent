@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import secrets
@@ -59,6 +60,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app.state.loop = asyncio.get_running_loop()
         if load_optional_tools:
             loaded = registry.load_optional()
             log.info("tools: %s", ", ".join(registry.tools) or "none")
@@ -151,12 +153,42 @@ def _mount_browser_routes(app: FastAPI, auth: Any) -> None:
 app = create_app()
 
 
+class Server:
+    """uvicorn with a quick stop: the exit signal ends every SSE stream, so a deploy never waits
+    on persistent connections; the graceful wait is capped as a backstop."""
+
+    def __init__(self, app: FastAPI, bus: EventBus, host: str, port: int, root_path: str) -> None:
+        import uvicorn
+
+        outer = self
+
+        class _Server(uvicorn.Server):
+            def handle_exit(self, sig: Any, frame: Any) -> None:
+                outer.close_streams()
+                super().handle_exit(sig, frame)
+
+        self.app = app
+        self.bus = bus
+        self.server = _Server(
+            uvicorn.Config(app, host=host, port=port, root_path=root_path, proxy_headers=True, timeout_graceful_shutdown=10)
+        )
+
+    def close_streams(self) -> int:
+        """Called from the signal handler, which may run off the loop thread (Windows)."""
+        loop = getattr(self.app.state, "loop", None)
+        if loop is not None and loop.is_running():
+            loop.call_soon_threadsafe(self.bus.close_all)
+            return -1
+        return self.bus.close_all()
+
+    def run(self) -> None:
+        self.server.run()
+
+
 def main() -> None:
     """`python -m ola.main`: serve on OLA_BIND (default 0.0.0.0:8787) under OLA_ROOT_PATH."""
-    import uvicorn
-
     host, _, port = os.environ.get("OLA_BIND", "0.0.0.0:8787").rpartition(":")
-    uvicorn.run("ola.main:app", host=host or "0.0.0.0", port=int(port), root_path=os.environ.get("OLA_ROOT_PATH", ""), proxy_headers=True)
+    Server(app, app.state.bus, host or "0.0.0.0", int(port), os.environ.get("OLA_ROOT_PATH", "")).run()
 
 
 if __name__ == "__main__":
