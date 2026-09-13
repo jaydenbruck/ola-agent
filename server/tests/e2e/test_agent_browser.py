@@ -54,7 +54,7 @@ async def test_signin_wall_needs_you_takeover_resume_through_the_wire(sites, fre
     bus = EventBus()
     mem = Memory(tmp_path / "facts.json")
     mem.remember("Wohnt in der Dieburger Straße 48a, 63303 Dreieich.")
-    agent = Agent(Model(), bus, mem, reg, Attachments(tmp_path / "att"))
+    agent = Agent(Model(), bus, mem, reg, Attachments(tmp_path / "att"), turn_model=Model(model=os.environ.get("OLA_TURN_MODEL") or None))
     app = create_app(agent=agent, bus=bus, token="e2e", registry=reg, load_optional_tools=False)
     browser.mount(app, app.state.auth)
     t = "e2e-wire"

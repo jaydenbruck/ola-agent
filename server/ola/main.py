@@ -75,7 +75,8 @@ def create_app(
             if loaded:
                 log.info("optional tools loaded: %s", ", ".join(loaded))
         if app.state.agent is None:
-            app.state.agent = Agent(Model(), bus, Memory(), registry, Attachments())
+            turn_id = os.environ.get("OLA_TURN_MODEL") or None  # the chat turn's model; jobs keep OLA_MODEL
+            app.state.agent = Agent(Model(), bus, Memory(), registry, Attachments(), turn_model=Model(model=turn_id))
         yield
         await app.state.agent.shutdown()
 
@@ -91,8 +92,8 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, Any]:
-        model = current().model
-        return {"ok": True, "model": getattr(model, "model", "fake"), "tools": list(registry.tools)}
+        a = current()
+        return {"ok": True, "model": getattr(a.model, "model", "fake"), "turn_model": getattr(a.turn_model, "model", "fake"), "tools": list(registry.tools)}
 
     @app.post("/chat", status_code=202, dependencies=[Depends(auth)])
     async def chat(body: ChatIn) -> dict[str, str]:
