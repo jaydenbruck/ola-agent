@@ -355,6 +355,8 @@ def main():
     evidence = ROOT / "server" / "tests" / "live" / "evidence"
     evidence.mkdir(exist_ok=True)
     (evidence / "latest.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+    if (OUT / "app-events.sse").exists():
+        shutil.copyfile(OUT / "app-events.sse", evidence / "events.sse")
     print(json.dumps(counts))
     return int(bool(counts["failed"] or counts["error"]))
 
