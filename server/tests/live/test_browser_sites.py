@@ -180,8 +180,12 @@ async def test_lieferando_margherita_to_the_cart(fresh_browser):
     j.passed(f"'{dish_label}' from '{restaurant_label}' is in the cart: the page shows '{line.strip()[:120]}'; stopped before payment on {res.url}. Nothing ordered.")
 
 
+@pytest.mark.skip(reason="LinkedIn dropped from the demo scope (founder 20:18): the sign-in has an "
+                         "image-check wall the founder cannot pass in the takeover, and a seeded li_at is "
+                         "invalidated / 429'd from the estate IP. The sign-in + needs_you behaviour is proven "
+                         "in tests/unit against the local wall; the cookie loader is dormant (env unset).")
 async def test_linkedin_lands_on_the_sign_in_page_never_the_join_page(fresh_browser):
-    """The stated goal is the sign-in page plus the hand-over: a wall here is the pass."""
+    """Kept as a boundary proof but out of the capability count (founder 20:18)."""
     j = Journey("linkedin")
     res = await j.do(action="goto", url="https://www.linkedin.com/login")
     if "A dialog is open" in res.text:
