@@ -1,0 +1,6 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Angebot</title><link rel="stylesheet" href="style.css"></head>
+<body><header><strong>Shop</strong></header>
+<main><h1>Unsere Angebote</h1><a href="/deal.html">Deal des Tages</a></main>
+<div id="promo" style="position:fixed;inset:60px 20px;background:#fff;border:2px solid #333;padding:20px" role="dialog"><h2>Newsletter?</h2><p>10 % Rabatt.</p><button id="yes">Jetzt anmelden</button><button id="later" style="background:#eee;color:#333">Später</button></div>
+<script>document.getElementById('later').onclick=()=>document.getElementById('promo').remove();document.getElementById('yes').onclick=()=>location.href='/newsletter.html';</script>
+</body></html>

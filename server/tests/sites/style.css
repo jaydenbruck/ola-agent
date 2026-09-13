@@ -1,0 +1,14 @@
+body{font-family:system-ui,sans-serif;margin:0;color:#222}
+header{background:#14532d;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+header a{color:#fff;font-weight:600;text-decoration:none}
+main{padding:20px 16px;min-height:600px}
+footer{background:#eee;padding:20px 16px;font-size:14px}
+footer a{display:block;margin:6px 0;color:#444}
+label{display:block;margin:12px 0 4px}
+input,button{font-size:16px;padding:10px;border:1px solid #999;border-radius:6px;width:100%;box-sizing:border-box}
+button{background:#14532d;color:#fff;border:0;margin-top:12px}
+.banner{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:3px solid #14532d;padding:18px 16px;box-shadow:0 -4px 20px rgba(0,0,0,.25)}
+.banner button{margin-top:8px}
+.rows{list-style:none;margin:0;padding:0;border:1px solid #ccc;border-radius:6px;position:absolute;background:#fff;width:calc(100% - 32px);z-index:5}
+.rows li{padding:12px;border-bottom:1px solid #eee}
+.chip{display:inline-block;background:#dcfce7;padding:6px 10px;border-radius:14px;margin-top:8px}

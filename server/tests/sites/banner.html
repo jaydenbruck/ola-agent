@@ -1,0 +1,32 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Essen bestellen</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><strong>Lieferdienst</strong><a href="/signin.html" id="header-login">Anmelden</a></header>
+<main>
+<h1>Was möchtest du essen?</h1>
+<label for="addr">Lieferadresse</label><input id="addr" name="address" placeholder="Straße und Hausnummer">
+<button id="go">Restaurants anzeigen</button>
+<p>Über 300 Restaurants in deiner Nähe.</p>
+</main>
+<footer>
+<a href="/partner/signup.html">Ein Restaurant anmelden</a>
+<a href="/partner/kurier.html">Kurier werden</a>
+<a href="/jobs.html">Jobs</a>
+<a href="/impressum.html">Impressum</a>
+<a href="/datenschutz.html">Datenschutz</a>
+<a href="/agb.html">AGB</a>
+<a href="/presse.html">Presse</a>
+<a href="/hilfe.html">Hilfe</a>
+</footer>
+<div class="banner" id="cookie-banner" role="dialog" aria-modal="true" aria-label="Cookies">
+<h2>Wir verwenden Cookies</h2>
+<p>Damit alles läuft, und für Werbung, wenn du es erlaubst.</p>
+<button id="accept-all">Alle akzeptieren</button>
+<button id="reject" style="background:#fff;color:#14532d;border:1px solid #14532d">Nur notwendige</button>
+</div>
+<script>
+const b=document.getElementById('cookie-banner');
+document.getElementById('accept-all').onclick=()=>{b.remove();document.body.dataset.cookies='all'};
+document.getElementById('reject').onclick=()=>{b.remove();document.body.dataset.cookies='necessary'};
+document.getElementById('go').onclick=()=>{location.href='/restaurants.html?addr='+encodeURIComponent(document.getElementById('addr').value)};
+</script>
+</body></html>

@@ -1,0 +1,44 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Fahrt planen</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><strong>Fahrt</strong></header>
+<main>
+<h1>Plane deine Fahrt</h1>
+<div class="field">
+<label for="pickup">Abholort</label>
+<input id="pickup" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Abholort eingeben" autocomplete="off">
+<ul class="rows" id="pickup-rows" role="listbox" hidden></ul>
+<div id="pickup-chip"></div>
+</div>
+<div class="field">
+<label for="dest">Ziel</label>
+<input id="dest" role="combobox" aria-autocomplete="list" placeholder="Wohin?" autocomplete="off">
+<ul class="rows" id="dest-rows" role="listbox" hidden></ul>
+<div id="dest-chip"></div>
+</div>
+<label for="note">Notiz (ein normales Feld)</label><input id="note" name="note">
+<p id="fare" hidden>Preis: 9,80 € – 12 Minuten</p>
+<script>
+const PLACES=['Dieburger Straße 48a, 63303 Dreieich','Dieburger Straße 4, 64287 Darmstadt','Gartenstraße 112, 63225 Langen','Ricarda-Huch-Schule, Breslauer Straße 15, 63303 Dreieich','Frankfurter Straße 1, 63303 Dreieich'];
+const SPECIAL=['Aktuellen Standort verwenden','Standort auf der Karte setzen'];
+const picked={};
+function wire(id){
+  const input=document.getElementById(id), rows=document.getElementById(id+'-rows'), chip=document.getElementById(id+'-chip');
+  let timer;
+  input.addEventListener('input',()=>{ clearTimeout(timer); rows.hidden=true; input.setAttribute('aria-expanded','false');
+    const q=input.value.trim().toLowerCase(); if(!q) return;
+    timer=setTimeout(()=>{ // the list opens a moment after the last keystroke, like a real geocoder
+      rows.innerHTML=''; const hits=PLACES.filter(p=>p.toLowerCase().includes(q.split(' ')[0]));
+      for(const s of SPECIAL){const li=document.createElement('li');li.setAttribute('role','option');li.textContent=s;rows.appendChild(li);}
+      for(const h of hits){const li=document.createElement('li');li.setAttribute('role','option');li.textContent=h;li.addEventListener('click',()=>{
+        setTimeout(()=>{ input.value=''; chip.innerHTML='<span class="chip">'+h+'</span>'; picked[id]=h; rows.hidden=true; input.setAttribute('aria-expanded','false');
+          if(picked.pickup&&picked.dest) document.getElementById('fare').hidden=false; },350); // the site fills the field a beat after the tap
+      });rows.appendChild(li);}
+      if(hits.length){rows.hidden=false;input.setAttribute('aria-expanded','true');}
+    },450);
+  });
+}
+wire('pickup');wire('dest');
+</script>
+</main>
+<footer><a href="/impressum.html">Impressum</a></footer>
+</body></html>

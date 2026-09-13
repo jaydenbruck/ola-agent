@@ -1,0 +1,15 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Anmelden – Testwall</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><strong>Testwall</strong><a href="/signin.html">Anmelden</a></header>
+<main>
+<h1>Bitte anmelden</h1>
+<p id="hint">Dieser Bereich ist nur für angemeldete Mitglieder.</p>
+<form method="post" action="/login">
+<label for="user">Benutzername</label><input id="user" name="user" autocomplete="username">
+<label for="password">Passwort</label><input id="password" name="password" type="password" autocomplete="current-password">
+<button type="submit">Anmelden</button>
+</form>
+<script>if(location.search.includes('error'))document.getElementById('hint').textContent='Falsches Passwort. Bitte noch einmal.';</script>
+</main>
+<footer><a href="/signup.html">Konto erstellen</a><a href="/impressum.html">Impressum</a></footer>
+</body></html>

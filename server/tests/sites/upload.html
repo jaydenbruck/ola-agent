@@ -1,0 +1,5 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Foto hochladen</title><link rel="stylesheet" href="style.css"></head>
+<body><header><strong>Anzeige</strong></header>
+<main><h1>Foto zur Anzeige</h1><label for="photo">Foto</label><input id="photo" type="file" accept="image/*"><p id="chosen"></p>
+<script>document.getElementById('photo').addEventListener('change',e=>{document.getElementById('chosen').textContent='Ausgewählt: '+e.target.files[0].name;});</script>
+</main></body></html>
