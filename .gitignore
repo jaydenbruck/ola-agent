@@ -28,3 +28,13 @@ build/
 node_modules/
 server/memory/facts.json
 server/attachments/
+
+# Local runtime artifacts (never publish)
+*.log
+server/*.log
+public_url.txt
+*.pid
+server/lieferando_proof.*
+server/*_proof.*
+*-frames/
+**/logs/*-frames/

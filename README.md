@@ -1,137 +1,90 @@
-Demo video: pending the Mission Leader's link.
+**Demo video (2 minutes):** ⟵ REPLACE_WITH_VIDEO_LINK
 
 # Ola
 
-Ola is a general-purpose agent on a server that can use the web and sign into things.
-You talk to it like a friend; one request can become several jobs running at once.
-Those jobs use Ola's own signed-in browser.
-You see each job's screen and take over when a site needs you.
-Ola keeps talking and comes back with results.
+Ola is a personal agent that lives on a server and does real errands in real apps.
+You talk to it like a friend. One request can fan out into several jobs that run at
+the same time, each driving Ola's own signed-in web browser. You watch each job's
+screen, and when a site truly needs a person, the job hands you the page; you finish
+that step and the job continues. Ola keeps talking and comes back with the results.
 
-This is the submission's intended behavior. The repository is under construction;
-the sections below will be checked against `main` at the submission freeze.
+## 01 · Project overview
 
-## External apps
+Everyday errands online mean juggling apps, logins, and tabs. Ola takes one
+plain-language request and carries it out for you across several real apps at once,
+showing its work and pausing only when a site genuinely needs a human (a sign-in, a
+code, a checkout confirmation).
 
-The three external apps are WhatsApp Web, Lieferando, and Uber, all through
-Ola's own browser. Every sign-in happens through the phone takeover.
+One request such as *"order my usual pizza and tell Mia when it arrives"* becomes
+two jobs: one drives the food site to checkout, one messages the contact. Each job
+streams its screen and its steps to the phone. Ola answers in the member's language,
+speaks its replies aloud, and never claims work it did not do: before it places an
+order or books a ride it shows the real price and waits for a yes.
 
-## How it works
+## 02 · External apps used
 
-```text
-SwiftUI door: chat, job screens, takeover
-                    |
-                    v
-             FastAPI chat turn <--> OpenRouter model
-                    |
-              concurrent jobs
-                    |
-       Ola's own signed-in browser
-                    |
-       WhatsApp / Lieferando / Uber
-                    |
-  page needs you -> takeover -> resume job
+Ola connects to three external apps, all through its own signed-in browser:
 
-Job steps, frames, and results -> event stream -> phone
-```
+- **WhatsApp Web** — read a chat and send a message to a contact.
+- **Lieferando** — find a restaurant, build an order, and reach the checkout page.
+- **Uber** — get a ride price and book it.
 
-The turn delegates work to background jobs. Each job runs its own tool loop.
-The browser uses a persistent profile and a separate page for each job. When a
-site needs sign-in, a code, or a captcha, the job pauses and shows the page for
-you to handle. You resume it when done. The server calls the model through
-OpenRouter; `OLA_MODEL` selects the model, with `x-ai/grok-4.5` as the planned default.
-The server core is on `main` at `771017b`. Browser and native-app verification
-remain separate from the core checks.
+One request can touch all three at once. Each sign-in happens once in Ola's browser
+and the session persists across restarts, so later requests are already logged in.
 
-## Run it
+## 03 · Setup instructions
 
-The server core and fresh iOS app are on `main`. The app merged at `28b112c`.
-
-Use Python 3.12. From the repository root on macOS or Linux:
+Server — Python 3.12, on macOS, Linux, or Windows:
 
 ```sh
-cp .env.example server/.env
-# Fill server/.env with your credentials and a random OLA_TOKEN.
-uv venv server/.venv --python 3.12
-. server/.venv/bin/activate
-uv pip install -e ./server
+cp .env.example server/.env          # then fill in the values below
+python -m venv server/.venv          # or: uv venv server/.venv --python 3.12
+. server/.venv/bin/activate          # Windows: server\.venv\Scripts\activate
+pip install -e ./server              # or: uv pip install -e ./server
 python -m playwright install chromium
-bash scripts/run_local.sh
+python -m ola.main                   # serves on http://0.0.0.0:8787
 ```
 
-With pip, replace the environment and dependency steps with:
+Fill `server/.env` (see `.env.example` for the full list):
+
+- `OLA_TOKEN` — a random bearer string; the app sends it on every request.
+- `OPENROUTER_API_KEY` — the model provider; `OLA_MODEL` selects the model
+  (default `openai/gpt-5.6-sol`).
+- `OPENAI_API_KEY` — spoken replies (`/speak`) and transcription.
+- `OLA_BROWSER_HEADFUL=true` and `OLA_BROWSER_CHANNEL=chrome` — run real Google
+  Chrome instead of headless Chromium, so consumer sites do not flag automation.
+
+App — open `app/Ola.xcodeproj` in Xcode, run on an iOS 17 device, then in Settings
+enter the server URL and the same access key. `codemagic.yaml` builds and signs it
+for TestFlight.
+
+## 04 · Reliability testing
+
+`scripts/reliability.py` runs the unit suite, the end-to-end suite against local
+test sites with the real model, and recorded live runs on the real external sites.
+The counts, the method, a table per capability, and the real failures we hit and
+fixed are in **[RELIABILITY.md](RELIABILITY.md)**. Re-run it with:
 
 ```sh
-python3.12 -m venv server/.venv
 . server/.venv/bin/activate
-python -m pip install -e ./server
+python scripts/reliability.py
 ```
 
-The local server address is `http://localhost:8787`. See
-[server setup](server/README.md) and the commented [.env.example](.env.example).
+The unit and event-stream layers are deterministic and run without a key. The
+end-to-end and live runs need `OPENROUTER_API_KEY` (and a real browser session for
+the live sites); they are skipped when the environment is absent.
 
-Open `app/Ola.xcodeproj` in Xcode, choose the Ola scheme and your signing team,
-then build for iOS 17 or later. In Settings, enter
-a server URL reachable from the phone and the same `OLA_TOKEN`. The default URL
-is `https://api.tryola.ai/agent/`; the app stores the URL and token in Keychain.
+## 05 · Demo video
 
-The root `codemagic.yaml` includes native checks and a managed TestFlight
-workflow. App revision `a818677` is on `main`, with bundle `ai.tryola.agent`,
-team `KKW3BWLT63`, and a visible empty chat. D-8 has that exact revision and
-the dispatch request; signing is still pending.
+The two-minute walkthrough is linked at the top of this file.
 
-N-3 reports that the earlier authenticated native run for `0b16f0a` passed and
-that its screenshot showed a real German response streaming from the public
-server, with no black screen. The first Mac candidate `aeeabb2` also compiled
-for simulator and device on its first attempt. A real takeover screenshot and
-phone verification remain pending. D-0's deployment hold remains active.
+---
 
-## How we tested reliability
+Built by Jayden Bruck during the Multi-App AI Agent Hackathon. All rights reserved;
+this source is published for evaluation only — see **[LICENSE](LICENSE)**. Third-party
+dependencies and their licenses are listed in **[THIRD_PARTY.md](THIRD_PARTY.md)**.
 
-No reliability results have landed on `main` yet. The final README will quote
-counts from `RELIABILITY.md`, link `RELIABILITY.pdf`, and distinguish local fixture
-tests, real-model runs, and live-site journeys. No pass rate is claimed here.
-
-N-3 reports all 12 Swift core tests passing, including the real-model SSE
-fixture, and passing public SSE replay checks. The input-rejection helper stops
-queued takeover input when the server rejects an action. The authenticated
-native chat screenshot is evidence for chat rendering; real takeover and
-signed phone delivery remain unverified.
-
-N-3's local server probe received chat acceptance and 27 SSE events, checked
-completion text and exact replay of the 26-event tail, verified rejection of a
-bad bearer token, and checked the jobs route. It used a harmless German text
-request without tools. This does not prove browser takeover or native rendering.
-
-From the repository root, run `python app/Tools/test_linux.py` for the Windows-to-WSL
-checks, or `swift test --package-path app` on a Swift 5.9+ host. Reproducing the
-live fixture requires the real-server probe documented in `app/README.md`.
-
-N-1 reports 39 passing server-core unit tests with a fake model. From `server`,
-install test dependencies with `python -m pip install -e '.[test]'`, then run
-`python -m pytest tests/unit -q`. Run `python -m pytest tests/e2e -q` for the
-real-model suite, which skips without a key.
-
-The combined rerun command, from the repository root with the server environment
-activated, is `python scripts/reliability.py`. Use `--help` for its options.
-
-## Built today
-
-Written from scratch by Jayden Bruck during the Multi-App AI Agent Hackathon
-on 13 September 2026.
-
-Thanks to Python, SwiftUI, FastAPI, Playwright, and OpenRouter.
-
-## Limits
-
-Signed phone delivery and real takeover verification remain pending. The local
-setup uses one shared bearer token. Browser sessions and personal facts stay
-in local data files.
-
-## License
-
-Copyright © 2026 Jayden Robert Bruck. All rights reserved.
-Access is limited to individuals named by the copyright holder for local
-evaluation of this hackathon submission. See [LICENSE](LICENSE) for the full
-Ola Source Evaluation License 1.0 and [THIRD_PARTY.md](THIRD_PARTY.md) for dependency
-notices. The repository stays private.
+**Limits.** Consumer sites defend against automation; Ola runs a real, signed-in
+browser from a normal network to work with them, and hands you any check it cannot
+pass. It touches an external party (a message, an order, a ride) only when your
+request puts that in scope, and it shows the real price and asks before it spends.

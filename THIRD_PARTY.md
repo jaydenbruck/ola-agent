@@ -1,14 +1,31 @@
 # Third-party notices
 
-The server dependency inventory is awaiting the final audit of its declared and
-resolved dependencies, including test dependencies and Playwright's browser
-distribution. The preliminary skeleton inventory no longer describes the landed
-server. A complete license table and no-copyleft check are due before the freeze.
+## Server (Python)
 
-The fresh iOS app merged to `main` at `28b112c` has zero third-party Swift
-dependencies. Its `app/Package.swift` declares only the local OlaCore library
-and tests; the Xcode project declares no external package references.
+Direct dependencies, from `server/pyproject.toml`, each under a permissive license:
 
-Apple SDKs and the separately installed Chromium browser retain their own terms
-and third-party notices. External services such as OpenRouter, WhatsApp, Lieferando, and Uber
-are not code included in this repository.
+| Package | License |
+|---|---|
+| fastapi | MIT |
+| uvicorn[standard] | BSD-3-Clause |
+| httpx | BSD-3-Clause |
+| python-multipart | Apache-2.0 |
+| playwright | Apache-2.0 |
+| pillow | HPND (PIL license) |
+
+`playwright install chromium` downloads a Chromium build at setup time; Chromium is
+BSD-3-Clause with additional third-party components under their own licenses. Test
+extras (pytest and plugins) are MIT.
+
+The model is reached over HTTP through OpenRouter; speech and transcription over HTTP
+through OpenAI. No provider SDK is vendored — only `httpx` calls.
+
+## App (Swift)
+
+The iOS app uses only Apple's own frameworks (SwiftUI, AVFoundation, Speech,
+Security). It vendors no third-party Swift packages.
+
+## Copyleft
+
+No GPL, LGPL, AGPL, or other copyleft-licensed code is included in this repository.
+All third-party dependencies above are permissively licensed and are used unmodified.

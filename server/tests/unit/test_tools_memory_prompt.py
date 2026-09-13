@@ -32,9 +32,9 @@ async def test_register_module_openai_and_bare_shapes():
     assert [s["function"]["name"] for s in reg.schemas("job")] == ["send_message", "read_chat"]
     assert reg.schemas("turn") == []
     ctx = Context(thread_id="t", job_id="j1")
-    r = await reg.call("send_message", {"contact": "Luisa", "text": "hi"}, ctx)
-    assert r.text == '{"sent": "Luisa", "job": "j1"}' and r.ok
-    r = await reg.call("read_chat", {"contact": "Luisa"}, ctx)
+    r = await reg.call("send_message", {"contact": "Mia", "text": "hi"}, ctx)
+    assert r.text == '{"sent": "Mia", "job": "j1"}' and r.ok
+    r = await reg.call("read_chat", {"contact": "Mia"}, ctx)
     assert r.text == "Error: WhatsApp is not signed in" and not r.ok
     r = await reg.call("read_chat", {"nope": 1}, ctx)
     assert r.text.startswith("Error: wrong arguments for read_chat")

@@ -2,32 +2,36 @@ Ola Source Evaluation License 1.0
 
 Copyright © 2026 Jayden Robert Bruck. All rights reserved.
 
-1. Who may use this work
-Only individuals named by the copyright holder may access this work, solely
-to evaluate this hackathon submission. Access to a repository or a copy does
-not by itself grant permission. All rights not expressly granted are reserved.
+This source is published for one reason only: so that the organizers and judges
+of the Multi-App AI Agent Hackathon, and the public, may read and evaluate this
+submission. It is not open-source software. Jayden Robert Bruck retains all
+rights in it. Access to a copy does not by itself grant any right beyond those
+stated below.
 
-2. What you may do
-During that evaluation, you may view the source, make the local copies needed
-to build it, and build and run it locally solely for the evaluation.
+1. What you may do
+You may view and read this source, and you may build and run it locally, in each
+case solely to evaluate this hackathon submission.
 
-3. What you may not do
-You may not copy the work beyond those local evaluation needs, redistribute
-it, publish it, disclose it to anyone else, create derivative works, or
-sublicense it. You may not use it for commercial purposes or research. You
-may not use the code to train or evaluate any machine-learning model.
+2. What you may not do
+Except for the transient copies a local build strictly requires, you may not, in
+whole or in part: copy the source; redistribute, publish, mirror, or host it;
+present it as your own; create derivative or adapted works from it; use it in
+production, for any commercial purpose, or for research; sublicense it; or remove
+or alter these notices. You may not use the source, any part of it, or any output
+derived from it to train, fine-tune, benchmark, or evaluate any machine-learning
+model, or to build any dataset.
 
-4. Other rights
-This license grants no patent or trademark rights. Third-party dependencies
-remain subject to their own licenses; this license does not replace them.
-See THIRD_PARTY.md.
+3. Other rights
+No patent or trademark rights are granted. Third-party dependencies remain under
+their own licenses; see THIRD_PARTY.md. This license does not replace them.
 
-5. When permission ends
-Permission ends when the evaluation ends or when the copyright holder gives
-notice. You must then stop using the work and delete all copies you made,
-including source and build artifacts.
+4. When permission ends
+Permission ends when the evaluation ends, or when the copyright holder gives
+notice, whichever comes first. You must then stop using the source and delete any
+copies and build artifacts you made.
 
-6. No warranty
-The work is provided "as is", without warranty of any kind. To the extent
-permitted by law, the copyright holder is not liable for any claim, damage,
-or other liability arising from access to or use of the work.
+5. No warranty
+The source is provided "as is", without warranty of any kind. The copyright
+holder is not liable for any claim or damage arising from it.
+
+For any use beyond the above, contact the copyright holder.

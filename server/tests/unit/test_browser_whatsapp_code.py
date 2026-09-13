@@ -88,7 +88,7 @@ async def test_whatsapp_takes_the_phone_link_path_and_never_types_the_number(sit
     assert await field.is_visible()
     assert await field.input_value() == "", "the tool must never type the member's phone number"
     # the member types their own number and continues -> WhatsApp shows the code
-    await field.fill("+49 170 0000000")
+    await field.fill("+49 151 0000000")
     await s.page.click("#weiter")
     assert await browser._whatsapp_link_code(s.page) == "ABCD-2345"
 

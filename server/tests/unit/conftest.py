@@ -63,7 +63,7 @@ def tool_names(tools: list[dict[str, Any]] | None) -> list[str]:
 @pytest.fixture
 def memory(tmp_path) -> Memory:
     mem = Memory(tmp_path / "facts.json")
-    mem.remember("Home: Dieburger Straße 48a, 63303 Dreieich.")
+    mem.remember("Home: Musterstraße 12, 63303 Dreieich.")
     mem.remember("Language: English first, German is fine.")
     return mem
 

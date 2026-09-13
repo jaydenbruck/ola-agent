@@ -58,7 +58,7 @@ async def wait_for(bus: EventBus, thread_id: str, ok, timeout: float = 90.0):
 def agent(tmp_path):
     calls: list[str] = []
     mem = Memory(tmp_path / "facts.json")
-    mem.remember("Wohnt in der Dieburger Straße 48a, 63303 Dreieich.")
+    mem.remember("Wohnt in der Musterstraße 12, 63303 Dreieich.")
     mem.remember("Language: English first, German is fine.")
     a = Agent(Model(), EventBus(), mem, registry_with_lookup(calls), Attachments(tmp_path / "att"))
     a.lookup_calls = calls  # type: ignore[attr-defined]
