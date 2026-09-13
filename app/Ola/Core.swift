@@ -81,6 +81,14 @@ struct WireEvent: Codable, Equatable {
     var result: String?
     var code: String?
     var code_hint: String?
+    var price: String?
+    var detail: String?
+}
+
+struct JobConfirmation: Codable, Equatable {
+    var title: String
+    var price: String
+    var detail: String
 }
 
 enum JobState: String, Codable {
@@ -104,6 +112,8 @@ struct JobCard: Codable, Identifiable, Equatable {
     var frameURL: String?
     var code: String?
     var codeHint: String?
+    var confirm: JobConfirmation?
+    var confirmAnswer: String?
 }
 
 struct JobSnapshot: Decodable {
@@ -116,6 +126,7 @@ struct JobSnapshot: Decodable {
     var code: String?
     var code_hint: String?
     var needs_you: CodeInfo?
+    var confirm: JobConfirmation?
     struct CodeInfo: Decodable { var code: String?; var code_hint: String? }
 
     var card: JobCard {
@@ -127,7 +138,8 @@ struct JobSnapshot: Decodable {
         default: status = .running
         }
         return JobCard(id: job_id, title: title, state: status, step: last_step ?? "", frameURL: frame_url,
-                       code: status.active ? (code ?? needs_you?.code) : nil, codeHint: code_hint ?? needs_you?.code_hint)
+                       code: status.active ? (code ?? needs_you?.code) : nil, codeHint: code_hint ?? needs_you?.code_hint,
+                       confirm: status.active ? confirm : nil)
     }
 }
 
@@ -176,7 +188,7 @@ struct ThreadState: Codable, Equatable {
             return nil
         }
         guard event.type.hasPrefix("job."), let id = event.job_id else { return nil }
-        guard ["job.started", "job.step", "job.needs_you", "job.done", "job.failed"].contains(event.type) else { return nil }
+        guard ["job.started", "job.step", "job.needs_you", "job.confirm", "job.done", "job.failed"].contains(event.type) else { return nil }
         if !jobs.contains(where: { $0.id == id }) {
             jobs.append(JobCard(id: id, title: event.title ?? ""))
             items.append(.job(id))
@@ -187,7 +199,13 @@ struct ThreadState: Codable, Equatable {
         // Late steps must never resurrect a completed card.
         guard jobs[index].state.active else { return nil }
         switch event.type {
-        case "job.step": jobs[index].step = event.text ?? jobs[index].step
+        case "job.step":
+            jobs[index].step = event.text ?? jobs[index].step
+            jobs[index].confirm = nil; jobs[index].confirmAnswer = nil
+        case "job.confirm":
+            guard let title = event.title, let price = event.price, let detail = event.detail else { return nil }
+            jobs[index].confirm = JobConfirmation(title: title, price: price, detail: detail)
+            jobs[index].confirmAnswer = nil; jobs[index].state = .needsYou
         case "job.needs_you": jobs[index].state = .needsYou; jobs[index].step = event.reason ?? ""
         case "job.done": jobs[index].state = .done; jobs[index].step = event.result ?? ""
         case "job.failed": jobs[index].state = .failed; jobs[index].step = event.reason ?? ""
@@ -197,7 +215,10 @@ struct ThreadState: Codable, Equatable {
             jobs[index].code = code.isEmpty ? nil : code
             jobs[index].codeHint = event.code_hint ?? jobs[index].codeHint
         }
-        if !jobs[index].state.active { jobs[index].code = nil; jobs[index].codeHint = nil }
+        if !jobs[index].state.active {
+            jobs[index].code = nil; jobs[index].codeHint = nil
+            jobs[index].confirm = nil; jobs[index].confirmAnswer = nil
+        }
         return nil
     }
 
@@ -205,6 +226,11 @@ struct ThreadState: Codable, Equatable {
         if let index = jobs.firstIndex(where: { $0.id == card.id }) {
             var latest = card
             if latest.state == .needsYou && latest.code == nil { latest.code = jobs[index].code; latest.codeHint = latest.codeHint ?? jobs[index].codeHint }
+            let old = jobs[index]
+            if latest.state.active, latest.step == old.step, old.confirmAnswer != nil,
+               latest.confirm == nil || latest.confirm == old.confirm {
+                latest.confirm = old.confirm; latest.confirmAnswer = old.confirmAnswer
+            }
             jobs[index] = latest
         }
         else { jobs.append(card); items.append(.job(card.id)) }
@@ -212,6 +238,11 @@ struct ThreadState: Codable, Equatable {
     mutating func resumed(_ id: String) {
         guard let index = jobs.firstIndex(where: { $0.id == id }), jobs[index].state.active else { return }
         jobs[index].state = .running; jobs[index].code = nil; jobs[index].codeHint = nil
+    }
+    mutating func answered(_ id: String, confirmation: JobConfirmation, answer: String) {
+        guard ["yes", "no"].contains(answer), let index = jobs.firstIndex(where: { $0.id == id }),
+              jobs[index].state.active, jobs[index].confirm == confirmation, jobs[index].confirmAnswer == nil else { return }
+        jobs[index].confirmAnswer = answer; jobs[index].state = .running
     }
 }
 

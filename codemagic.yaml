@@ -111,7 +111,7 @@ workflows:
           settings="$(xcodebuild -project app/Ola.xcodeproj -scheme Ola -configuration Release -showBuildSettings)"
           test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ PRODUCT_BUNDLE_IDENTIFIER = / {print $2; exit}')" = "ai.tryola.agent"
           test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ DEVELOPMENT_TEAM = / {print $2; exit}')" = "KKW3BWLT63"
-          test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ CURRENT_PROJECT_VERSION = / {print $2; exit}')" = "3"
+          test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ CURRENT_PROJECT_VERSION = / {print $2; exit}')" = "4"
           test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ MARKETING_VERSION = / {print $2; exit}')" = "1.0"
       - name: Parser, reducer, and coordinate tests
         script: |
@@ -137,7 +137,7 @@ workflows:
             --ipa-directory build/ipa \
             --export-options-plist build/export_options.plist \
             --archive-flags "-destination generic/platform=iOS" \
-            --archive-xcargs "DEVELOPMENT_TEAM=KKW3BWLT63 PRODUCT_BUNDLE_IDENTIFIER=ai.tryola.agent CURRENT_PROJECT_VERSION=3"
+            --archive-xcargs "DEVELOPMENT_TEAM=KKW3BWLT63 PRODUCT_BUNDLE_IDENTIFIER=ai.tryola.agent CURRENT_PROJECT_VERSION=4"
           ipa="$(find build/ipa -maxdepth 1 -type f -name '*.ipa' -print -quit)"
           test -n "$ipa"
           printf '%s\n' "$ipa" > build/ipa-path.txt

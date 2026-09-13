@@ -261,18 +261,32 @@ struct JobCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
-                Text(job.title).font(.headline)
+                Text(job.confirm?.title ?? job.title).font(.headline)
                 Spacer()
                 Text(job.state.label(model.language)).font(.caption).foregroundStyle(Palette.secondary)
             }
             if !job.step.isEmpty { Text(job.step).font(.subheadline).textSelection(.enabled) }
+            if let confirm = job.confirm {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(confirm.price).font(.system(size: 32, weight: .semibold)).monospacedDigit()
+                    Text(confirm.detail).font(.subheadline).foregroundStyle(Palette.secondary)
+                    if let answer = job.confirmAnswer {
+                        Text(answer == "yes" ? model.words("Bestätigt", "Confirmed") : model.words("Abgelehnt", "Declined")).font(.subheadline.weight(.medium))
+                    } else {
+                        HStack(spacing: 12) {
+                            Button(model.words("Ja", "Yes")) { Task { await model.answerJob(job.id, confirmation: confirm, answer: "yes") } }.buttonStyle(.borderedProminent)
+                            Button(model.words("Nein", "No")) { Task { await model.answerJob(job.id, confirmation: confirm, answer: "no") } }.buttonStyle(.bordered)
+                        }.disabled(model.answering.contains(job.id))
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(14).background(Palette.ground, in: RoundedRectangle(cornerRadius: 16))
+            }
             if job.state.active, let code = job.code, !code.isEmpty { LinkCodePanel(code: code, hint: job.codeHint) }
             if let path = job.frameURL {
                 Button(action: open) { AuthenticatedFrame(path: path).frame(height: 180).clipped() }
                     .buttonStyle(.plain).accessibilityLabel(model.words("Bildschirm öffnen", "Open screen"))
             }
             HStack {
-                if job.state == .needsYou {
+                if job.state == .needsYou && job.confirm == nil {
                     Button(model.words("Übernehmen", "Take over"), action: open).buttonStyle(.borderedProminent)
                 }
                 Spacer()

@@ -2,6 +2,31 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testConfirmationFromEventAndSnapshotThenAcknowledgementAndNextStep() throws {
+        let json = Data(#"{"type":"job.confirm","job_id":"pizza","title":"Margherita","price":"12,50 €","detail":"Delivery in 25 minutes"}"#.utf8)
+        let event = try JSONDecoder().decode(WireEvent.self, from: json)
+        var state = ThreadState()
+        XCTAssertNil(state.reduce(event))
+        let confirmation = try XCTUnwrap(state.jobs[0].confirm)
+        XCTAssertEqual(confirmation.price, "12,50 €")
+        XCTAssertNil(state.jobs[0].confirmAnswer)
+        state.answered("pizza", confirmation: confirmation, answer: "yes")
+        XCTAssertEqual(state.jobs[0].confirmAnswer, "yes")
+        state.restore(JobCard(id: "pizza", title: "Margherita"))
+        XCTAssertEqual(state.jobs[0].confirmAnswer, "yes")
+        state.reduce(WireEvent(type: "job.step", job_id: "pizza", text: "Continuing"))
+        XCTAssertNil(state.jobs[0].confirm)
+        XCTAssertNil(state.jobs[0].confirmAnswer)
+        state.answered("pizza", confirmation: confirmation, answer: "yes")
+        XCTAssertNil(state.jobs[0].confirmAnswer)
+        let row = try JSONDecoder().decode(JobSnapshot.self, from: Data(#"{"job_id":"ride","title":"Ride","state":"needs_you","confirm":{"title":"Uber","price":"18 €","detail":"Arrives in 4 minutes"}}"#.utf8))
+        state.restore(row.card)
+        let ride = try XCTUnwrap(row.card.confirm)
+        state.answered("ride", confirmation: ride, answer: "no")
+        XCTAssertEqual(state.jobs[1].confirmAnswer, "no")
+        state.reduce(WireEvent(type: "job.done", job_id: "ride"))
+        XCTAssertNil(state.jobs[1].confirm)
+    }
     func testLinkCodeRotatesSurvivesWaitingSnapshotsAndClears() throws {
         var state = ThreadState()
         let event = try JSONDecoder().decode(WireEvent.self, from: Data(#"{"type":"job.needs_you","job_id":"wa","code":"ABCD-1234","code_hint":"Enter this code in WhatsApp."}"#.utf8))

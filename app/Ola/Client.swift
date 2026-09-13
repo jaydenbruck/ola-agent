@@ -101,6 +101,7 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     @Published var running: [JobCard] = []
     @Published var overview: [JobCard] = []
+    @Published var answering: Set<String> = []
     @Published var language = UserDefaults.standard.string(forKey: "language") ?? "en" {
         didSet { UserDefaults.standard.set(language, forKey: "language") }
     }
@@ -295,5 +296,19 @@ final class AppModel: ObservableObject {
     func cancelJob(_ id: String) async {
         do { _ = try await api.post("/jobs/\(id)/cancel"); await refreshJobs() }
         catch { self.error = words("Der Auftrag konnte nicht gestoppt werden.", "The job couldn't be stopped.") }
+    }
+    func answerJob(_ id: String, confirmation: JobConfirmation, answer: String) async {
+        guard !answering.contains(id), ["yes", "no"].contains(answer),
+              state.jobs.contains(where: { $0.id == id && $0.confirm == confirmation && $0.confirmAnswer == nil }) else { return }
+        let generation = epoch
+        answering.insert(id)
+        defer { answering.remove(id) }
+        do {
+            _ = try await api.post("/jobs/\(id)/confirm", ["answer": answer])
+            guard epoch == generation else { return }
+            state.answered(id, confirmation: confirmation, answer: answer); scheduleSave()
+        } catch {
+            if epoch == generation { self.error = words("Deine Antwort konnte nicht bestätigt werden. Bitte prüfe die Verbindung.", "Your answer could not be confirmed. Please check the connection.") }
+        }
     }
 }
