@@ -23,8 +23,13 @@ def sites():
 
 @pytest.fixture(scope="session")
 def browser_profile():
+    """A throwaway profile, run headless: the backward-safe path (OLA_BROWSER_HEADFUL=false) is what
+    the suite exercises; the one headful test flips the env itself and relaunches."""
+    import os
+
     from ola.tools import browser
 
+    os.environ["OLA_BROWSER_HEADFUL"] = "0"
     tmp = Path(tempfile.mkdtemp(prefix="ola-profile-"))
     browser.PROFILE_DIR = tmp
     return tmp

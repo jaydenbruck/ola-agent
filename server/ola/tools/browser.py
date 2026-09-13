@@ -167,6 +167,82 @@ DESKTOP_VIEWPORT = {"width": 780, "height": 1688}  # the same 390:844 shape at h
 READY_HINTS = {"web.whatsapp.com": "canvas, #pane-side, [aria-label*='Chatliste' i], [aria-label*='chat list' i], [data-testid*='chat-list']"}
 DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.33 Safari/537.36"
 
+# --- the browser's identity (founder: headful real Chrome so Cloudflare's managed check auto-passes) ---
+_BUNDLED_CHROME = "131.0.6778.33"  # Playwright's bundled Chromium; replaced by the real version at launch
+_chrome_version: str = _BUNDLED_CHROME
+
+
+def _truthy(v: Optional[str]) -> bool:
+    return str(v or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _host_desktop() -> tuple[str, str, str]:
+    """(UA os token, navigator.platform, client-hint platform) matching the machine Chrome runs on,
+    so the desktop identity is consistent with what the real browser reports."""
+    import sys as _sys
+
+    if _sys.platform.startswith("win"):
+        return "Windows NT 10.0; Win64; x64", "Win32", "Windows"
+    if _sys.platform == "darwin":
+        return "Macintosh; Intel Mac OS X 10_15_7", "MacIntel", "macOS"
+    return "X11; Linux x86_64", "Linux x86_64", "Linux"
+
+
+def _ua(desktop: bool) -> str:
+    v = _chrome_version
+    if desktop:
+        return f"Mozilla/5.0 ({_host_desktop()[0]}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{v} Safari/537.36"
+    return f"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{v} Mobile Safari/537.36"
+
+
+def _platform(desktop: bool) -> str:
+    return _host_desktop()[1] if desktop else "Linux armv8l"
+
+
+def _ua_metadata(desktop: bool) -> dict[str, Any]:
+    """Client hints that agree with the UA string (a mismatch is what bot checks look for)."""
+    major = _chrome_version.split(".")[0]
+    brands = [{"brand": "Chromium", "version": major}, {"brand": "Google Chrome", "version": major}, {"brand": "Not_A Brand", "version": "24"}]
+    if desktop:
+        ch = _host_desktop()[2]
+        return {"brands": brands, "fullVersion": _chrome_version, "platform": ch, "platformVersion": "10.0.0" if ch == "Windows" else "6.8.0", "architecture": "x86", "model": "", "mobile": False}
+    return {"brands": brands, "fullVersion": _chrome_version, "platform": "Android", "platformVersion": "14.0.0", "architecture": "", "model": "Pixel 8", "mobile": True}
+
+
+# Runs before any page script: the signals a headless / automated browser leaks, made to look
+# like a normal profile. Idempotent and guarded; never breaks a page that already has these.
+STEALTH_JS = r"""
+(() => {
+  const def = (o, k, get) => { try { Object.defineProperty(o, k, { get, configurable: true }); } catch (e) {} };
+  def(navigator, 'webdriver', () => undefined);
+  def(navigator, 'languages', () => ['de-DE', 'de', 'en']);
+  if (!window.chrome) { try { window.chrome = { runtime: {}, app: { isInstalled: false }, loadTimes: function () { return {}; }, csi: function () { return {}; } }; } catch (e) {} }
+  try {
+    if (!navigator.plugins || navigator.plugins.length === 0) {
+      const mk = (name) => ({ name, filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 });
+      const plugins = [mk('PDF Viewer'), mk('Chrome PDF Viewer'), mk('Chromium PDF Viewer'), mk('Microsoft Edge PDF Viewer'), mk('WebKit built-in PDF')];
+      const pa = Object.assign([], plugins); pa.item = (i) => plugins[i] || null; pa.namedItem = (n) => plugins.find((p) => p.name === n) || null; pa.refresh = () => {};
+      def(navigator, 'plugins', () => pa);
+      const mt = [{ type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format', enabledPlugin: plugins[0] }, { type: 'text/pdf', suffixes: 'pdf', description: 'Portable Document Format', enabledPlugin: plugins[0] }];
+      const ma = Object.assign([], mt); ma.item = (i) => mt[i] || null; ma.namedItem = (t) => mt.find((m) => m.type === t) || null;
+      def(navigator, 'mimeTypes', () => ma);
+    }
+  } catch (e) {}
+  try {
+    const V = 'Google Inc. (Intel)', R = 'ANGLE (Intel, Intel(R) UHD Graphics 630 (0x00003E9B) Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    const patch = (proto) => { if (!proto || proto.__olaPatched) return; const orig = proto.getParameter; proto.getParameter = function (p) { if (p === 37445) return V; if (p === 37446) return R; return orig.apply(this, arguments); }; proto.__olaPatched = true; };
+    patch(window.WebGLRenderingContext && WebGLRenderingContext.prototype);
+    patch(window.WebGL2RenderingContext && WebGL2RenderingContext.prototype);
+  } catch (e) {}
+  try {
+    if (navigator.permissions && navigator.permissions.query && window.Notification) {
+      const oq = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (p) => (p && p.name === 'notifications') ? Promise.resolve({ state: Notification.permission, onchange: null }) : oq(p);
+    }
+  } catch (e) {}
+})();
+"""
+
 _JOIN_URL = re.compile(r"/(signup|sign-up|join|register|registrieren|cold-join)(/|\?|\.|$)", re.I)
 _REGIONS = ("dialog", "header", "main", "footer")
 _LOGIN_WALL = re.compile(r"melde dich an|anmelden, um|einloggen, um|log ?in to|sign ?in to|bitte anmelden|please (sign|log) in|wie lautet deine telefonnummer", re.I)
@@ -467,21 +543,43 @@ async def _ensure_context() -> Any:
         from playwright.async_api import async_playwright
 
         PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-        _pw = await async_playwright().start()
-        _context = await _pw.chromium.launch_persistent_context(
-            str(PROFILE_DIR),
-            headless=os.environ.get("OLA_HEADED", "") not in ("1", "true", "yes"),
+        # Founder: a real, visible browser (under Xvfb on the estate) so Cloudflare's managed check
+        # auto-passes. OLA_BROWSER_HEADFUL defaults to true; false runs headless exactly as before.
+        # OLA_BROWSER_CHANNEL=chrome uses the installed Google Chrome instead of bundled Chromium.
+        headful = _truthy(os.environ.get("OLA_BROWSER_HEADFUL", "1")) or _truthy(os.environ.get("OLA_HEADED"))
+        channel = (os.environ.get("OLA_BROWSER_CHANNEL") or "").strip() or None
+        args = ["--disable-blink-features=AutomationControlled", "--lang=de-DE"]
+        if headful:  # what keeps a visible Chrome stable on a server, as a service user
+            args += ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu-sandbox", "--no-first-run", "--no-default-browser-check"]
+        launch: dict[str, Any] = dict(
+            headless=not headful,
             viewport=VIEWPORT,
             device_scale_factor=DEVICE_SCALE,
             is_mobile=True,
             has_touch=True,
-            user_agent=MOBILE_UA,
+            user_agent=_ua(False),
             locale="de-DE",
             timezone_id="Europe/Berlin",
             ignore_default_args=["--enable-automation"],
-            args=["--disable-blink-features=AutomationControlled", "--lang=de-DE"],
+            args=args,
         )
+        if channel:
+            launch["channel"] = channel
+        _pw = await async_playwright().start()
+        _context = await _pw.chromium.launch_persistent_context(str(PROFILE_DIR), **launch)
         _context.set_default_timeout(int(ACTION_BUDGET_S * 1000))
+        global _chrome_version
+        try:  # the real engine version, so every UA and client hint agrees with what the browser is
+            ver = str(getattr(getattr(_context, "browser", None), "version", "") or "")
+            if re.match(r"^\d+\.\d+\.\d+\.\d+$", ver):
+                _chrome_version = ver
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            await _context.add_init_script(STEALTH_JS)
+        except Exception:  # noqa: BLE001
+            pass
+        log.info("browser up: headful=%s channel=%s version=%s", headful, channel or "bundled", _chrome_version)
         await _seed_cookies(_context)
         return _context
 
@@ -581,18 +679,20 @@ async def _session(job_id: str, lang: str = "de") -> _Session:
 
     page.on("popup", adopt)
     _sessions[job_id] = s
+    await _set_desktop(s, False, force=True)  # the identity with the real engine version, on every page
     return s
 
 
-async def _set_desktop(s: _Session, desktop: bool) -> None:
-    """Give this one page a desktop identity and viewport (or take it back), through CDP."""
-    if s.desktop == desktop:
+async def _set_desktop(s: _Session, desktop: bool, force: bool = False) -> None:
+    """Give this one page a desktop identity and viewport (or take it back), through CDP. The UA,
+    navigator.platform and the client hints all carry the real engine version, so they agree."""
+    if s.desktop == desktop and not force:
         return
     try:
         cdp = await s.page.context.new_cdp_session(s.page)
         vp = DESKTOP_VIEWPORT if desktop else VIEWPORT
         scale = DEVICE_SCALE * VIEWPORT["width"] / vp["width"]  # the frame keeps its pixel size
-        await cdp.send("Emulation.setUserAgentOverride", {"userAgent": DESKTOP_UA if desktop else MOBILE_UA, "acceptLanguage": "de-DE,de;q=0.9,en;q=0.8", "platform": "Win32" if desktop else "Linux armv8l"})
+        await cdp.send("Emulation.setUserAgentOverride", {"userAgent": _ua(desktop), "acceptLanguage": "de-DE,de;q=0.9,en;q=0.8", "platform": _platform(desktop), "userAgentMetadata": _ua_metadata(desktop)})
         await cdp.send("Emulation.setDeviceMetricsOverride", {"width": vp["width"], "height": vp["height"], "deviceScaleFactor": scale, "mobile": not desktop})
         await cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": not desktop})
         s.desktop, s.viewport = desktop, dict(vp)
