@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -53,6 +54,8 @@ def read_cases(path, suite):
             node = item.find(tag)
             if node is not None:
                 state, detail = label, node.get("message", "")
+                if tag == "skipped" and node.get("type") == "pytest.xfail":
+                    state = "blocked"
                 break
         cases.append({"suite": suite, "name": item.get("name", "unnamed"),
                       "class": item.get("classname", ""), "state": state, "detail": detail,
@@ -134,15 +137,16 @@ def proves(case):
 
 def reports(data):
     cases = [case for run in data["runs"] for case in run["cases"]]
-    counts = {state: sum(c["state"] == state for c in cases) for state in ("passed", "failed", "error", "skipped")}
-    executed = counts["passed"] + counts["failed"]
+    counts = {state: sum(c["state"] == state for c in cases) for state in ("passed", "failed", "error", "blocked", "skipped")}
+    executed = counts["passed"] + counts["failed"] + counts["blocked"]
     overview = (f"{executed} tests ran to a test outcome. {counts['passed']} passed, {counts['failed']} failed, "
-                f"{counts['error']} errors and {counts['skipped']} skipped. {len(cases)} evidence rows including collection errors.")
+                f"{counts['error']} errors, {counts['blocked']} blocked and {counts['skipped']} skipped. {len(cases)} evidence rows in total.")
     metadata = f"Tested commit {data['commit']}. Window {data['started']} to {data['ended']}."
     method = ("The runner executes the entire unit directory, then e2e, then live, using the same Python environment. "
               "Each row comes from pytest JUnit output, with parameter cases counted separately. WhatsApp checks exercise "
               "the browser wrapper against local pages. E2e checks use the real "
-              "model when configured. Live checks require their account credentials. A skip proves nothing about a live service. "
+              "model when configured. Live checks require their account credentials. Blocked means an attempted journey "
+              "did not establish its requested outcome; it is not a pass. A skip proves nothing about a live service. "
               "Raw sanitized XML, command logs and the run manifest are stored under build/reliability. No count is a success-rate forecast.")
     failures = [f"{proves(c)}: {c['detail']}" for c in cases if c["state"] in ("failed", "error")]
     history = ("The first real WhatsApp visit showed a browser compatibility screen with Playwright's default "
@@ -160,6 +164,15 @@ def reports(data):
     escape = lambda value: str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
     md = ["# Ola reliability", "", "Ola is a hackathon project by Jayden Bruck.", "", overview, "", metadata, "", "## Method", "", method, ""]
     sections = []
+    if data.get("journeys"):
+        md += ["## Real-site outcomes", "", "| Site | Observed outcome | Evidence |", "|---|---|---|"]
+        rows = []
+        for journey in data["journeys"]:
+            values = (journey["site"], journey["outcome"], journey["log"])
+            md.append("| " + " | ".join(escape(v) for v in values) + " |")
+            rows.append("<tr>" + "".join("<td>" + html.escape(v) + "</td>" for v in values) + "</tr>")
+        md.append("")
+        sections.append("<h2>Real-site outcomes</h2><table><thead><tr><th>Site</th><th>Observed outcome</th><th>Evidence</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
     for group in dict.fromkeys(capability(c) for c in cases):
         rows = [c for c in cases if capability(c) == group]
         md += ["## " + group, "", "| What it proves | How it was run | Result |", "|---|---|---|"]
@@ -195,6 +208,19 @@ def reports(data):
     return counts
 
 
+def source_state():
+    paths = []
+    for flags in (["--cached"], ["--others", "--exclude-standard"]):
+        listing = subprocess.check_output(["git", "ls-files", *flags, "--", "server", "scripts"], cwd=ROOT, text=True)
+        paths.extend(p for p in listing.splitlines() if Path(p).suffix in (".py", ".toml", ".html", ".css", ".js", ".sh") and "/logs/" not in p)
+    digest = hashlib.sha256()
+    for path in sorted(set(paths)):
+        full = ROOT / path
+        if full.exists():
+            digest.update(path.encode() + b"\0" + full.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
 def pdf():
     chrome = os.getenv("CHROME_PATH") or shutil.which("google-chrome") or r"C:\Program Files\Google\Chrome\Application\chrome.exe"
     target = ROOT / "RELIABILITY.pdf"
@@ -221,15 +247,26 @@ def main():
         env = environment([*args.env_file, ROOT / "server" / ".env", ROOT.parent / ".env.ola-agent"])
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
-        data = {"commit": commit + (" + working-tree changes" if dirty else ""), "started": stamp(), "runs": []}
+        data = {"commit": commit + (" + working-tree changes" if dirty else ""), "source_sha256": source_state(), "started": stamp(), "runs": []}
         for suite in ("unit", "e2e", "live"):
             print("Running " + suite, flush=True)
             data["runs"].append(run_suite(suite, env, args.timeout))
         data["ended"] = stamp()
+        data["journeys"] = []
+        for path in sorted((ROOT / "server" / "tests" / "live" / "logs").glob("*.md")):
+            if path.stat().st_mtime < datetime.fromisoformat(data["started"]).timestamp():
+                continue
+            content = redact(path.read_text(encoding="utf-8"), env)
+            if "## Outcome" in content:
+                data["journeys"].append({"site": path.stem.split("-")[0], "log": path.relative_to(ROOT).as_posix(),
+                                         "outcome": content.split("## Outcome", 1)[1].strip()})
         manifest.write_text(json.dumps(data, indent=2), encoding="utf-8")
     counts = reports(data)
     if not args.no_pdf:
         pdf()
+    evidence = ROOT / "server" / "tests" / "live" / "evidence"
+    evidence.mkdir(exist_ok=True)
+    (evidence / "latest.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     print(json.dumps(counts))
     return int(bool(counts["failed"] or counts["error"]))
 

@@ -18,6 +18,12 @@ def test_junit_outcomes(tmp_path):
     assert [c["state"] for c in report.read_cases(path, "live")] == ["passed", "skipped", "failed", "error"]
 
 
+def test_expected_site_failure_is_blocked(tmp_path):
+    path = tmp_path / "run.xml"
+    path.write_text('<testsuites><testsuite><testcase name="fare"><skipped type="pytest.xfail" message="Sign-in wall"/></testcase></testsuite></testsuites>')
+    assert report.read_cases(path, "live")[0]["state"] == "blocked"
+
+
 def test_secrets_redacted():
     env = {"OPENROUTER_API_KEY": "sensitive-key", "OLA_WHATSAPP_TEST_CONTACT": "person@example.test", "EXAMPLE_REFRESH_TOKEN": "refresh-me"}
     assert report.redact("sensitive-key person@example.test refresh-me Bearer access-value", env) == "[redacted] [redacted] [redacted] Bearer [redacted]"
