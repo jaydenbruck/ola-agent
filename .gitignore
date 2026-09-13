@@ -1,0 +1,9 @@
+.env
+.profile/
+__pycache__/
+*.pyc
+DerivedData/
+*.xcuserstate
+build/
+.venv/
+node_modules/
