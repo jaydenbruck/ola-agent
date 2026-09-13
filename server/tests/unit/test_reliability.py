@@ -24,6 +24,16 @@ def test_expected_site_failure_is_blocked(tmp_path):
     assert report.read_cases(path, "live")[0]["state"] == "blocked"
 
 
+def test_swift_skip_cannot_count_as_pass():
+    output = "Test Case 'CoreTests.testOne' passed (0.1 seconds)\nTest Case 'CoreTests.testFixture' skipped (0.0 seconds)\nExecuted 2 tests, with 1 test skipped and 0 failures"
+    assert [case["state"] for case in report.read_swift_output(output)] == ["passed", "skipped"]
+
+
+def test_incomplete_swift_results_are_error():
+    output = "Test Case 'CoreTests.testOne' passed (0.1 seconds)\nExecuted 2 tests, with 0 failures"
+    assert report.read_swift_output(output)[-1]["state"] == "error"
+
+
 def test_secrets_redacted():
     env = {"OPENROUTER_API_KEY": "sensitive-key", "OLA_WHATSAPP_TEST_CONTACT": "person@example.test", "EXAMPLE_REFRESH_TOKEN": "refresh-me"}
     assert report.redact("sensitive-key person@example.test refresh-me Bearer access-value", env) == "[redacted] [redacted] [redacted] Bearer [redacted]"
