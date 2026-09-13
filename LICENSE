@@ -1,0 +1,33 @@
+Ola Source Evaluation License 1.0
+
+Copyright © 2026 Jayden Robert Bruck. All rights reserved.
+
+1. Who may use this work
+Only individuals named by the copyright holder may access this work, solely
+to evaluate this hackathon submission. Access to a repository or a copy does
+not by itself grant permission. All rights not expressly granted are reserved.
+
+2. What you may do
+During that evaluation, you may view the source, make the local copies needed
+to build it, and build and run it locally solely for the evaluation.
+
+3. What you may not do
+You may not copy the work beyond those local evaluation needs, redistribute
+it, publish it, disclose it to anyone else, create derivative works, or
+sublicense it. You may not use it for commercial purposes or research. You
+may not use the code to train or evaluate any machine-learning model.
+
+4. Other rights
+This license grants no patent or trademark rights. Third-party dependencies
+remain subject to their own licenses; this license does not replace them.
+See THIRD_PARTY.md.
+
+5. When permission ends
+Permission ends when the evaluation ends or when the copyright holder gives
+notice. You must then stop using the work and delete all copies you made,
+including source and build artifacts.
+
+6. No warranty
+The work is provided "as is", without warranty of any kind. To the extent
+permitted by law, the copyright holder is not liable for any claim, damage,
+or other liability arising from access to or use of the work.

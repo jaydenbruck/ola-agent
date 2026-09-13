@@ -1,9 +1,28 @@
+# Local credentials, browser sessions, and personal memory
 .env
+.env.*
+!.env.example
+.profile
 .profile/
+**/memory/facts.json
+**/attachments/
+
+# Python and local test artifacts
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Xcode and platform artifacts
 DerivedData/
 *.xcuserstate
+xcuserdata/
+.DS_Store
+
+# Local builds and installed dependencies
 build/
-.venv/
 node_modules/
