@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from ola.agent import Agent, Attachments
 from ola.events import EventBus
 from ola.memory import Memory
 from ola.model import Model
+from ola.speech import Speech, SpeechUnavailable
 from ola.tools import REGISTRY, Registry
 
 log = logging.getLogger("ola.main")
@@ -36,6 +37,11 @@ def load_env(path: Path = ENV_FILE) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
+class SpeakIn(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+    language: str | None = None
+
+
 class ChatIn(BaseModel):
     thread_id: str = Field(min_length=1, max_length=120)
     text: str = Field(default="", max_length=20000)
@@ -48,9 +54,11 @@ def create_app(
     token: str | None = None,
     registry: Registry = REGISTRY,
     load_optional_tools: bool = True,
+    speech: Speech | None = None,
 ) -> FastAPI:
     load_env()
     bus = bus or EventBus()
+    speech = speech or Speech()
     expected = token if token is not None else os.environ.get("OLA_TOKEN", "")
 
     def auth(authorization: str | None = Header(default=None)) -> None:
@@ -124,6 +132,15 @@ def create_app(
             raise HTTPException(status_code=404, detail="no such job")
         await current().cancel(job_id)
         return {"job_id": job_id, "state": current().jobs[job_id].state}
+
+    @app.post("/speak", dependencies=[Depends(auth)])
+    async def speak(body: SpeakIn) -> Response:
+        """Ola's voice for the app: mp3 from OpenAI, or 503 so the app uses the system voice."""
+        try:
+            audio = await speech.speak(body.text, body.language)
+        except SpeechUnavailable as e:
+            return JSONResponse(status_code=503, content={"reason": str(e)})
+        return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
     @app.post("/attachments", dependencies=[Depends(auth)])
     async def attachments(file: UploadFile = File(...)) -> dict[str, str]:
