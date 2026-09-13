@@ -40,6 +40,7 @@ struct OlaMark: View {
 struct ChatView: View {
     @EnvironmentObject private var model: AppModel
     @State private var settings = false
+    @State private var clearChat = false
     @State private var takeover: JobCard?
     @State private var followBottom = true
     @State private var smokeSent = false
@@ -76,6 +77,7 @@ struct ChatView: View {
                         }.padding(.horizontal, 20).padding(.bottom, 20)
                     }
                     .defaultScrollAnchor(.bottom)
+                    .scrollDismissesKeyboard(.interactively)
                     .onChange(of: model.state.messages) { old, new in
                         if followBottom || new.last?.member == true && new.count != old.count { proxy.scrollTo("bottom", anchor: .bottom) }
                     }
@@ -86,6 +88,8 @@ struct ChatView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Palette.ground.ignoresSafeArea())
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded { dismissKeyboard() })
             .toolbarBackground(Palette.ground, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom, spacing: 0) { Composer() }
@@ -93,6 +97,8 @@ struct ChatView: View {
                 ToolbarItem(placement: .topBarLeading) { OlaMark() }
                 ToolbarItem(placement: .principal) { Text("Ola").font(.system(size: 20, weight: .semibold)) }
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { dismissKeyboard(); clearChat = true } label: { Image(systemName: "square.and.pencil") }
+                        .accessibilityLabel(model.words("Neuer Chat", "New chat")).disabled(model.sending || model.uploading)
                     Button { model.speaker.toggle() } label: { Image(systemName: model.speaker ? "speaker.wave.2" : "speaker.slash") }
                         .accessibilityLabel(model.words("Antworten vorlesen", "Speak replies"))
                         .accessibilityValue(model.speaker ? model.words("An", "On") : model.words("Aus", "Off"))
@@ -101,6 +107,10 @@ struct ChatView: View {
                 }
             }
             .sheet(isPresented: $settings) { SettingsView() }
+            .confirmationDialog(model.words("Chat leeren?", "Clear chat?"), isPresented: $clearChat, titleVisibility: .visible) {
+                Button(model.words("Neuer Chat", "New chat"), role: .destructive) { model.newChat() }
+                Button(model.words("Abbrechen", "Cancel"), role: .cancel) { }
+            }
             .fullScreenCover(item: $takeover) { TakeoverView(job: $0) }
             .alert(model.words("Hinweis", "Notice"), isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
                 Button("OK") { model.error = nil }
@@ -120,6 +130,9 @@ struct ChatView: View {
                 #endif
             }
         }.background(Palette.ground.ignoresSafeArea())
+    }
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     private var jobStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {

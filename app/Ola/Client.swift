@@ -171,6 +171,14 @@ final class AppModel: ObservableObject {
         connection = value; draft = ""; attachments = []; running = []; overview = []; error = nil
         connectionIssue = nil; restore(); start()
     }
+    func newChat() {
+        stop()
+        threadID = UUID().uuidString
+        UserDefaults.standard.set(threadID, forKey: "thread-" + connection.storageKey)
+        state = ThreadState(); draft = ""; attachments = []; running = []; overview = []
+        error = nil; connectionIssue = nil
+        persist(); start()
+    }
     func start() {
         guard stream == nil, connection.configured else { return }
         let generation = epoch, client = api, thread = threadID
