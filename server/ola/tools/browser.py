@@ -470,23 +470,83 @@ async def _ensure_context() -> Any:
         return _context
 
 
+_SAME_SITE = {
+    "strict": "Strict", "lax": "Lax", "none": "None",
+    "no_restriction": "None", "unspecified": None, "": None,  # Chrome / extension exports
+}
+
+
+def _normalize_cookie(raw: Any) -> Optional[dict[str, Any]]:
+    """One cookie in Playwright's add_cookies shape, from either that shape or a browser-extension
+    export (EditThisCookie / Cookie-Editor: `expirationDate`, `sameSite: "no_restriction"`,
+    `hostOnly`, `session`, `storeId`). Playwright rejects the extra keys and the Chrome sameSite
+    values, so the file the founder exports must be translated or nothing seeds. Returns None for a
+    cookie without a name or a value (a placeholder is not a session)."""
+    if not isinstance(raw, dict):
+        return None
+    name, value = raw.get("name"), raw.get("value")
+    if not name or value in (None, ""):
+        return None
+    out: dict[str, Any] = {"name": str(name), "value": str(value), "path": str(raw.get("path") or "/")}
+    domain = raw.get("domain")
+    if domain:
+        out["domain"] = str(domain)
+    elif raw.get("url"):
+        out["url"] = str(raw["url"])
+    else:
+        return None  # add_cookies needs a url or a domain
+    same = raw.get("sameSite")
+    same = _SAME_SITE.get(str(same).lower(), same if same in ("Strict", "Lax", "None") else None)
+    if same:
+        out["sameSite"] = same
+    out["secure"] = bool(raw.get("secure")) or same == "None"  # Chromium drops SameSite=None unless Secure
+    if "httpOnly" in raw:
+        out["httpOnly"] = bool(raw["httpOnly"])
+    expires = raw.get("expires", raw.get("expirationDate"))
+    if expires not in (None, "") and not raw.get("session"):
+        try:
+            out["expires"] = int(float(expires))
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
 async def _seed_cookies(context: Any) -> None:
-    """Seed session cookies from an operator-placed file (env OLA_SEED_COOKIES, a JSON list in
-    Playwright's add_cookies shape) so a site the founder cannot sign into inside the takeover
-    (LinkedIn's clipped image-captcha) is already logged in. add_cookies is an upsert by
-    name+domain+path, so seeding every startup is idempotent and the persistent profile keeps them.
-    Never logs a cookie's name, value or domain, only the count and the path; a bad or absent file
-    never breaks startup."""
+    """Seed session cookies from an operator-placed file (env OLA_SEED_COOKIES) so a site the
+    founder cannot sign into inside the takeover (LinkedIn's clipped image-captcha) is already
+    logged in. The file is a JSON list in Playwright's add_cookies shape or a browser-extension
+    export, which is normalized (see `_normalize_cookie`). Each cookie is added on its own so one
+    bad entry cannot sink a good `li_at`; add_cookies upserts by name+domain+path, so seeding every
+    startup is idempotent and the persistent profile keeps them. Never logs a cookie's name, value
+    or domain, only counts and the path; a bad or absent file never breaks startup. Whether a
+    session cookie is still valid for the site is the site's call, not ours: this only places it."""
     seed = os.environ.get("OLA_SEED_COOKIES")
     if not seed or not Path(seed).is_file():
         return
     try:
-        cookies = json.loads(Path(seed).read_text(encoding="utf-8"))
-        if isinstance(cookies, list) and cookies:
-            await context.add_cookies(cookies)
-            log.info("seeded %d cookies from %s", len(cookies), seed)
+        raw = json.loads(Path(seed).read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001  a bad file is skipped, never fatal
-        log.warning("cookie seed skipped: %s", type(e).__name__)
+        log.warning("cookie seed skipped, file not read: %s", type(e).__name__)
+        return
+    if isinstance(raw, dict) and isinstance(raw.get("cookies"), list):
+        raw = raw["cookies"]  # some exports wrap the list in an object
+    if not isinstance(raw, list) or not raw:
+        log.warning("cookie seed skipped: %s holds no cookie list", seed)
+        return
+    cookies = [c for c in (_normalize_cookie(c) for c in raw) if c]
+    added = 0
+    for c in cookies:
+        try:
+            await context.add_cookies([c])
+            added += 1
+        except Exception as e:  # noqa: BLE001  a single bad cookie is skipped, the rest still seed
+            log.warning("one cookie skipped: %s", type(e).__name__)
+    try:
+        present = {c["name"] for c in await context.cookies()}
+        stuck = sum(1 for c in cookies if c["name"] in present)
+    except Exception:  # noqa: BLE001
+        stuck = added
+    log.info("cookie seed from %s: %d in file, %d added, %d present after", seed, len(raw), added, stuck)
 
 
 async def _session(job_id: str, lang: str = "de") -> _Session:
