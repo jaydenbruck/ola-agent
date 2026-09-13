@@ -160,7 +160,8 @@ def reports(data):
     if data.get("environment"):
         metadata += f" Python {data['environment']['python']} on {data['environment']['platform']}; real-model setting {data['environment']['model']}."
     method = ("The runner executes the entire server unit directory, then e2e, then live, using the same Python environment. "
-              "Each row comes from pytest JUnit output, with parameter cases counted separately. WhatsApp checks exercise "
+              "Python rows come from pytest JUnit output, with parameter cases counted separately. Swift rows come from "
+              "completed XCTest case lines checked against the suite total, preserving skips. WhatsApp checks exercise "
               "the browser wrapper against local pages. E2e checks use the real "
               "model when configured. Live checks require their account credentials. Blocked means an attempted journey "
               "did not establish its requested outcome; it is not a pass. A skip proves nothing about a live service. "
@@ -176,6 +177,8 @@ def reports(data):
                "A later run hit two browser setup errors, including a Playwright driver allocation failure on this shared PC. "
                "The test fixture now reuses one Chromium process with a fresh context for each test. An encoding error in a "
                "German assertion was corrected; all 20 WhatsApp checks then passed. "
+               "Swift's parallel xUnit output counted a skipped fixture test as a pass, so the runner now reads serial "
+               "XCTest outcomes and checks their count against the suite summary. "
                "The founder removed email and Calendar from scope; their tests are excluded from this report.")
     limits = ["WhatsApp needs one QR linking step and an explicitly configured test contact for a live send; a QR screen is not a sent message.",
               "The integrations are WhatsApp, Lieferando, Uber and LinkedIn. Sign-in walls or blocked pages do not prove completed errands.",
@@ -246,7 +249,7 @@ def run_swift(env, timeout):
     started, output, cases, code = stamp(), "", [], 0
     xml_path = OUT / "swift.xml"
     xml_path.unlink(missing_ok=True)
-    command = "swift test --package-path app --xunit-output build/reliability/swift.xml"
+    command = "swift test --package-path app --jobs 1"
     try:
         if platform.system() == "Windows":
             prefix = ["wsl", "-d", env.get("OLA_SWIFT_DISTRO", "CTO-OpenClaw-Proof-20260908"), "--"]
@@ -261,22 +264,25 @@ def run_swift(env, timeout):
                     archive.add(OUT / "app-events.sse", arcname="events.sse")
             subprocess.run(prefix + ["tar", "xzf", "-", "-C", target], input=buffer.getvalue(), check=True, capture_output=True, timeout=60)
             fixture = ["env", "OLA_EVENT_FIXTURE=" + target + "/events.sse"] if (OUT / "app-events.sse").exists() else []
-            run = subprocess.run(prefix + fixture + [swift, "test", "--package-path", target, "--jobs", "1", "--xunit-output", target + "/swift.xml"],
+            run = subprocess.run(prefix + fixture + [swift, "test", "--package-path", target, "--jobs", "1"],
                                  capture_output=True, timeout=timeout)
             code, output = run.returncode, (run.stdout + run.stderr).decode("utf-8", "replace")
-            copied = subprocess.run(prefix + ["cat", target + "/swift.xml"], capture_output=True, timeout=30)
-            if copied.returncode == 0:
-                xml_path.write_text(redact(copied.stdout.decode("utf-8", "replace"), env), encoding="utf-8")
-            command = f"WSL {prefix[2]}: {swift} test --package-path <isolated copy of app> --jobs 1 --xunit-output swift.xml"
+            command = f"WSL {prefix[2]}: {swift} test --package-path <isolated copy of app> --jobs 1"
         else:
             swift_env = env.copy()
             if (OUT / "app-events.sse").exists():
                 swift_env["OLA_EVENT_FIXTURE"] = str(OUT / "app-events.sse")
             run = subprocess.run(["swift", "test", "--package-path", str(ROOT / "app"), "--scratch-path", str(OUT / "swift-build"),
-                                  "--jobs", "1", "--xunit-output", str(xml_path)], env=swift_env, capture_output=True, timeout=timeout)
+                                  "--jobs", "1"], env=swift_env, capture_output=True, timeout=timeout)
             code, output = run.returncode, (run.stdout + run.stderr).decode("utf-8", "replace")
-        if xml_path.exists():
-            cases = read_cases(xml_path, "swift")
+        cases = read_swift_output(output)
+        root = ET.Element("testsuites")
+        suite = ET.SubElement(root, "testsuite", name="Swift", tests=str(len(cases)))
+        for case in cases:
+            element = ET.SubElement(suite, "testcase", classname=case["class"], name=case["name"], time=str(case["seconds"]))
+            if case["state"] != "passed":
+                ET.SubElement(element, "failure" if case["state"] == "failed" else case["state"], message=case["detail"])
+        xml_path.write_text(redact(ET.tostring(root, encoding="unicode"), env), encoding="utf-8")
     except (OSError, subprocess.SubprocessError, ET.ParseError) as error:
         code, output = 125, "Swift test execution did not complete: " + type(error).__name__
     (OUT / "swift.log").write_text(redact(output, env), encoding="utf-8")
@@ -284,6 +290,18 @@ def run_swift(env, timeout):
         cases.append({"suite": "swift", "class": "collection", "name": "Swift suite completion", "state": "error",
                       "detail": f"Exit {code}; see build/reliability/swift.log", "seconds": 0})
     return {"suite": "swift", "command": command, "started": started, "ended": stamp(), "exit": code, "cases": cases}
+
+
+def read_swift_output(output):
+    pattern = r"Test Case '([^']+)\.(test[^']+)' (passed|failed|skipped) \(([\d.]+) seconds\)"
+    cases = [{"suite": "swift", "class": group, "name": name, "state": state,
+              "detail": "See build/reliability/swift.log" if state != "passed" else "", "seconds": float(seconds)}
+             for group, name, state, seconds in re.findall(pattern, output)]
+    totals = re.findall(r"Executed (\d+) tests?, with", output)
+    if not totals or len(cases) != int(totals[-1]):
+        cases.append({"suite": "swift", "class": "collection", "name": "Swift outcome count", "state": "error",
+                      "detail": "Completed case lines do not match a suite total; see swift.log", "seconds": 0})
+    return cases
 
 
 def pdf():
