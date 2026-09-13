@@ -4,10 +4,14 @@ Run `python scripts/reliability.py` from the repository root. The runner loads t
 local environment without printing it, runs unit, e2e and live directories, and
 stores sanitized JUnit and command logs under `build/reliability/`.
 
-The integrations are WhatsApp, Lieferando, Uber and LinkedIn, all through the same
+The scoped integrations are WhatsApp, Lieferando and Uber, all through the same
 browser tool. WhatsApp uses the persistent browser profile. When unlinked, it
 returns `needs_you` so the member scans the QR code in takeover. It never creates
 an account or starts phone-number linking.
+
+The reliability runner excludes LinkedIn's live journey following the founder's
+20:18 Berlin decision to drop it from the demo and submission. Historical site
+logs do not count as a LinkedIn capability pass in the final report.
 
 The live WhatsApp send/read test requires `OLA_WHATSAPP_TEST_CONTACT`, the exact
 name of an authorized test recipient in the linked account. It sends a unique

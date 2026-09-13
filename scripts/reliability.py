@@ -168,7 +168,7 @@ def reports(data):
               "model when configured. Live checks require their account credentials. Blocked means an attempted journey "
               "did not establish its requested outcome; it is not a pass. A skip proves nothing about a live service. "
               "Portable Swift tests then run in an isolated build directory; the real route journey supplies their SSE fixture. "
-              "LinkedIn's live journey is excluded following the founder's 20:18 Berlin scope decision. "
+              "Only the scoped live journeys and supplemental browser checks are included. "
               "This does not compile or test iOS rendering. Sanitized XML, command logs and the run manifest are stored "
               "under build/reliability. No count is a success-rate forecast.")
     failures = [f"{proves(c)}: {c['detail']}" for c in cases if c["state"] in ("failed", "error")]
@@ -186,15 +186,10 @@ def reports(data):
                "its slow acknowledgement; the core now waits for that acknowledgement before delivering the reminder. "
                "WhatsApp showed an IndexedDB error under the deeply nested Windows pytest profile path. "
                "The same QR check passed with a short isolated workspace profile, which the live test now uses. "
-               "The browser lane reported that LinkedIn cookie injection on the estate was proven: the cookie was present "
-               "after seeding. LinkedIn invalidated the replayed session from the datacenter egress IP: the page landed "
-               "at /login/ and the cookie was absent afterward, following an earlier HTTP 429 throttle. Its image security "
-               "check could not be completed through takeover. The founder dropped LinkedIn from the demo and submission; "
-               "the cookie loader remains in the code, disabled on the demo estate. "
                "The founder removed email and Calendar from scope; their tests are excluded from this report.")
     limits = ["WhatsApp needs one QR linking step and an explicitly configured test contact for a live send; a QR screen is not a sent message.",
-              "LinkedIn is out of demo and submission scope after the estate sign-in failed; no LinkedIn capability pass is claimed.",
-              "WhatsApp, Lieferando and Uber are the scoped apps. Blocked pages do not prove completed errands; this run does not prove phone acceptance or production reliability."]
+              "WhatsApp, Lieferando and Uber are the scoped apps. Sign-in walls and blocked pages do not prove completed errands.",
+              "This is one run of Ola, a hackathon project by Jayden Bruck. It does not prove phone acceptance or production reliability."]
     escape = lambda value: str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
     md = ["# Ola reliability", "", "Ola is a hackathon project by Jayden Bruck.", "", overview, "", metadata, "", "## Method", "", method, ""]
     sections = []
