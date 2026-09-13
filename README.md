@@ -76,13 +76,16 @@ then build for iOS 17 or later. In Settings, enter
 a server URL reachable from the phone and the same `OLA_TOKEN`. The default URL
 is `https://api.tryola.ai/agent/`; the app stores the URL and token in Keychain.
 
-The root `codemagic.yaml` defines core tests, a simulator build, and an unsigned
-device archive. N-3 reports that app commit `aeeabb2` compiled for simulator and
-device on its first Mac attempt in Codemagic run `6aa6e037af92e78aad968059`.
-The final input-rejection helper merged at `28b112c` was type-compiled and tested
-locally afterward. D-8's signed build and compilation of current `main` are next.
-Phone and public takeover verification are still pending; D-0's deployment hold
-remains active.
+The root `codemagic.yaml` includes native checks and a managed TestFlight
+workflow. App revision `a818677` is on `main`, with bundle `ai.tryola.agent`,
+team `KKW3BWLT63`, and a visible empty chat. D-8 has that exact revision and
+the dispatch request; signing is still pending.
+
+N-3 reports that the earlier authenticated native run for `0b16f0a` passed and
+that its screenshot showed a real German response streaming from the public
+server, with no black screen. The first Mac candidate `aeeabb2` also compiled
+for simulator and device on its first attempt. A real takeover screenshot and
+phone verification remain pending. D-0's deployment hold remains active.
 
 ## How we tested reliability
 
@@ -90,11 +93,11 @@ No reliability results have landed on `main` yet. The final README will quote
 counts from `RELIABILITY.md`, link `RELIABILITY.pdf`, and distinguish local fixture
 tests, real-model runs, and live-site journeys. No pass rate is claimed here.
 
-For merged app commit `28b112c`, N-3 reports 12 passing local core tests,
-including a captured real-model SSE response fed through the actual Swift parser
-and reducer. The final helper stops queued takeover input when the server
-rejects an action. The successful Mac build covers `aeeabb2`; a full native
-build of the later merged helper is still pending.
+N-3 reports all 12 Swift core tests passing, including the real-model SSE
+fixture, and passing public SSE replay checks. The input-rejection helper stops
+queued takeover input when the server rejects an action. The authenticated
+native chat screenshot is evidence for chat rendering; real takeover and
+signed phone delivery remain unverified.
 
 N-3's local server probe received chat acceptance and 27 SSE events, checked
 completion text and exact replay of the 26-event tail, verified rejection of a
