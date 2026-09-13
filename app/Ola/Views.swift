@@ -132,7 +132,6 @@ struct MessageRow: View {
             }
             .padding(message.member ? 14 : 0)
             .background(message.member ? Color.white.opacity(0.85) : Color.clear, in: RoundedRectangle(cornerRadius: 20))
-            if !message.member { Spacer(minLength: 14) }
         }.accessibilityElement(children: .contain)
     }
 }
@@ -141,6 +140,11 @@ struct MessageRow: View {
 struct SelectableText: UIViewRepresentable {
     let text: String
     let member: Bool
+    final class Coordinator {
+        var source: String?
+        var fontSize: CGFloat = 0
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView()
         view.isEditable = false; view.isSelectable = true; view.isScrollEnabled = false
@@ -151,7 +155,8 @@ struct SelectableText: UIViewRepresentable {
         return view
     }
     func updateUIView(_ view: UITextView, context: Context) {
-        guard view.accessibilityIdentifier != text else { return }
+        let pointSize = UIFont.preferredFont(forTextStyle: .body).pointSize
+        guard context.coordinator.source != text || context.coordinator.fontSize != pointSize else { return }
         let selected = view.selectedRange
         let output = NSMutableAttributedString(string: "")
         let lines = text.components(separatedBy: "\n")
@@ -182,12 +187,17 @@ struct SelectableText: UIViewRepresentable {
         let paragraph = NSMutableParagraphStyle(); paragraph.lineSpacing = 5
         output.addAttributes([.foregroundColor: UIColor(Palette.ink), .paragraphStyle: paragraph], range: NSRange(location: 0, length: output.length))
         view.attributedText = output
-        view.accessibilityIdentifier = text
+        context.coordinator.source = text; context.coordinator.fontSize = pointSize
         if selected.length > 0, NSMaxRange(selected) <= output.length { view.selectedRange = selected }
     }
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width else { return nil }
-        return uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        if member {
+            let natural = uiView.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
+            return CGSize(width: min(width, natural.width), height: fitting.height)
+        }
+        return fitting
     }
 }
 
@@ -256,7 +266,8 @@ struct Composer: View {
                         .lineLimit(1...6).font(.body).accessibilityLabel(model.words("Nachricht", "Message"))
                     Button {
                         model.voice.stop(); priorDraft = model.draft
-                        Task { await dictation.start(language: model.language) }
+                        model.voice.recording = true
+                        Task { await dictation.start(language: model.language) { transcript in putInComposer(transcript) } }
                     } label: { Image(systemName: "mic").frame(width: 32, height: 44) }
                         .accessibilityLabel(model.words("Nachricht diktieren", "Dictate message"))
                     if !model.draft.isEmpty || !model.attachments.isEmpty {
@@ -278,6 +289,7 @@ struct Composer: View {
                 }
             }
             .onChange(of: phase) { _, value in if value == .background { dictation.cancel() } }
+            .onChange(of: dictation.busy) { _, busy in if !busy { model.voice.recording = false } }
             .onDisappear { dictation.cancel() }
     }
     private var waveform: some View {
@@ -293,9 +305,12 @@ struct Composer: View {
     }
     private func finish(send: Bool) {
         dictation.finish { transcript in
-            model.draft = [priorDraft, transcript].filter { !$0.isEmpty }.joined(separator: " ")
+            putInComposer(transcript)
             if send { Task { await model.send() } }
         }
+    }
+    private func putInComposer(_ transcript: String) {
+        model.draft = [priorDraft, transcript].filter { !$0.isEmpty }.joined(separator: " ")
     }
 }
 

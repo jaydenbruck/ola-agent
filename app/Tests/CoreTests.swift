@@ -2,6 +2,17 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testPublicDoorPrefixOnEveryRoute() {
+        let base = URL(string: "https://api.tryola.ai/agent/")!
+        for route in ["/chat", "/events/thread", "/jobs?thread_id=thread&all=1", "/jobs/one/frame.jpg?t=2", "/jobs/one/input", "/jobs/one/resume", "/jobs/one/cancel", "/attachments"] {
+            XCTAssertEqual(ServiceURL.resolve(base: base, path: route)?.absoluteString, "https://api.tryola.ai/agent" + route)
+        }
+        XCTAssertEqual(ServiceURL.resolve(base: base, path: "/agent/jobs/one/frame.jpg")?.path, "/agent/jobs/one/frame.jpg")
+        XCTAssertEqual(ServiceURL.resolve(base: URL(string: "http://localhost:8787")!, path: "/chat")?.absoluteString, "http://localhost:8787/chat")
+        XCTAssertNil(ServiceURL.resolve(base: base, path: "https://other.example/frame.jpg"))
+        XCTAssertNil(ServiceURL.resolve(base: base, path: "../v0/health"))
+        XCTAssertNil(ServiceURL.resolve(base: base, path: "//other.example/frame.jpg"))
+    }
     func testByteBoundariesAndMultiline() {
         let bytes = Data("\u{FEFF}: heartbeat\r\nid: 12\r\nevent: message\r\ndata: Grüß dich 👋\r\ndata: again\r\n\r\n".utf8)
         for split in 0...bytes.count {
@@ -71,5 +82,29 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(point?.0, 195)
         XCTAssertEqual(point?.1, 422)
         XCTAssertNil(FrameGeometry.point(x: .nan, y: 12, width: 390, height: 844))
+    }
+    func testCompletionRepairsMissingDeltas() {
+        var state = ThreadState()
+        state.reduce(WireEvent(type: "assistant.delta", turn_id: "1", text: "partial"))
+        XCTAssertEqual(state.reduce(WireEvent(type: "assistant.done", turn_id: "1", text: "The whole reply")), "The whole reply")
+        XCTAssertEqual(state.messages[0].text, "The whole reply")
+    }
+    func testCapturedRealServerEvents() throws {
+        guard let path = ProcessInfo.processInfo.environment["OLA_EVENT_FIXTURE"] else {
+            throw XCTSkip("Run app/Tools/probe.py against the real server and set OLA_EVENT_FIXTURE")
+        }
+        var parser = SSEParser(), state = ThreadState()
+        let frames = parser.feed(try Data(contentsOf: URL(fileURLWithPath: path)))
+        XCTAssertFalse(frames.isEmpty)
+        var completions = 0
+        for frame in frames {
+            XCTAssertNotNil(frame.id)
+            let event = try JSONDecoder().decode(WireEvent.self, from: Data(frame.data.utf8))
+            if state.reduce(event) != nil { completions += 1 }
+        }
+        XCTAssertEqual(completions, 1)
+        XCTAssertEqual(state.messages.count, 1)
+        XCTAssertTrue(state.messages[0].finished)
+        XCTAssertFalse(state.messages[0].text.isEmpty)
     }
 }

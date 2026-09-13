@@ -5,7 +5,7 @@ import SwiftUI
 import UIKit
 
 struct Connection: Codable, Equatable {
-    var server = ""
+    var server = "https://api.tryola.ai/agent/"
     var token = ""
     var baseURL: URL? {
         guard let url = URL(string: server), ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
@@ -50,8 +50,7 @@ enum ClientError: Error { case configuration, response(Int), storage, image }
 struct API {
     let connection: Connection
     func request(_ path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
-        guard let base = connection.baseURL, let url = URL(string: path, relativeTo: base)?.absoluteURL,
-              url.scheme == base.scheme, url.host == base.host, url.port == base.port else { throw ClientError.configuration }
+        guard let base = connection.baseURL, let url = ServiceURL.resolve(base: base, path: path) else { throw ClientError.configuration }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
         request.httpMethod = method
         request.setValue("Bearer " + connection.token, forHTTPHeaderField: "Authorization")

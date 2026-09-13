@@ -181,6 +181,22 @@ func copy(_ language: String, _ german: String, _ english: String) -> String {
     language.hasPrefix("de") ? german : english
 }
 
+enum ServiceURL {
+    static func resolve(base: URL, path: String) -> URL? {
+        guard var parts = URLComponents(url: base, resolvingAgainstBaseURL: true),
+              ["http", "https"].contains(parts.scheme ?? ""), parts.host != nil,
+              parts.user == nil, parts.password == nil, parts.query == nil, parts.fragment == nil,
+              !path.hasPrefix("//") else { return nil }
+        if !parts.path.hasSuffix("/") { parts.path += "/" }
+        guard let directory = parts.url else { return nil }
+        let relative = path.hasPrefix(parts.path) && parts.path != "/" ? path : String(path.drop(while: { $0 == "/" }))
+        guard let url = URL(string: relative, relativeTo: directory)?.absoluteURL.standardized,
+              url.scheme == directory.scheme, url.host == directory.host, url.port == directory.port,
+              url.user == nil, url.password == nil, url.path.hasPrefix(parts.path) else { return nil }
+        return url
+    }
+}
+
 /// Coordinates are relative to the fitted screenshot, never the surrounding letterbox.
 enum FrameGeometry {
     static func point(x: Double, y: Double, width: Double, height: Double) -> (Double, Double)? {

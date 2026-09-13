@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+.evidence/
+__pycache__/
+*.xcuserstate
+xcuserdata/

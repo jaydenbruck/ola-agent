@@ -4,9 +4,17 @@ import NaturalLanguage
 import SwiftUI
 
 @MainActor
-final class ReplyVoice {
+final class ReplyVoice: NSObject, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
+    override init() { super.init(); synthesizer.delegate = self }
+    private var waiting: [(String, String)] = []
+    var recording = false {
+        didSet {
+            if !recording { let replies = waiting; waiting = []; for reply in replies { speak(reply.0, fallback: reply.1) } }
+        }
+    }
     func speak(_ text: String, fallback: String) {
+        if recording { waiting.append((text, fallback)); return }
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         let language = recognizer.dominantLanguage?.rawValue ?? fallback
@@ -20,8 +28,16 @@ final class ReplyVoice {
         } catch { /* Text remains available even if another app owns audio. */ }
     }
     func stop() {
+        waiting = []
         synthesizer.stopSpeaking(at: .immediate)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            if !self.synthesizer.isSpeaking && !self.recording {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
+        }
     }
 }
 
@@ -47,14 +63,16 @@ final class Dictation: ObservableObject {
         interruption = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.active else { return }
-                self.finish { _ in }
+                self.finish(self.completion ?? { _ in })
             }
         }
     }
+    deinit { if let interruption { NotificationCenter.default.removeObserver(interruption) } }
 
-    func start(language: String) async {
+    func start(language: String, onDraft: @escaping (String) -> Void) async {
         guard !busy else { return }
         cancel(); starting = true; error = nil; transcript = ""
+        completion = onDraft
         levels = Array(repeating: 0, count: 30)
         let session = generation
         let speech = await withCheckedContinuation { continuation in

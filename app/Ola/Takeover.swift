@@ -87,11 +87,30 @@ struct TakeoverView: View {
                 Button { keyboard.toggle(); typing = keyboard } label: { Image(systemName: "keyboard").frame(width: 44, height: 44) }
                     .accessibilityLabel(model.words("Tastatur", "Keyboard"))
             }.padding(.horizontal, 8)
+            HStack {
+                Button(model.words("Fertig, mach weiter", "Done, carry on")) {
+                    if !typed.isEmpty { sendTyped() }
+                    session.resume(api: model.api, jobID: job.id, language: model.language)
+                }.buttonStyle(.borderedProminent).disabled(session.pending > 0)
+                Spacer()
+            }.padding(.horizontal, 14).frame(height: 48)
+            HStack {
+                SecureField(model.words("Text oder Code eingeben", "Enter text or code"), text: $typed)
+                    .textContentType(.oneTimeCode).textInputAutocapitalization(.never).autocorrectionDisabled().focused($typing)
+                    .onSubmit { sendTyped() }
+                Button(action: sendTyped) { Image(systemName: "arrow.up").frame(width: 44, height: 44) }.disabled(typed.isEmpty)
+                    .accessibilityLabel(model.words("Text eingeben", "Type text"))
+                Button { input(["kind": "key", "key": "Backspace"]) } label: { Image(systemName: "delete.left").frame(width: 44, height: 44) }
+                    .accessibilityLabel(model.words("Zeichen löschen", "Delete character"))
+                Button { input(["kind": "key", "key": "Enter"]) } label: { Image(systemName: "return").frame(width: 44, height: 44) }
+                    .accessibilityLabel(model.words("Eingabetaste", "Enter key"))
+            }.padding(.horizontal, 14).frame(height: 52).opacity(keyboard ? 1 : 0)
+                .allowsHitTesting(keyboard).accessibilityHidden(!keyboard)
             GeometryReader { geometry in
                 ZStack {
                     Color.white
                     if let image = session.image {
-                        Image(uiImage: image).resizable().scaledToFit()
+                        Image(uiImage: image).resizable().interpolation(.high).scaledToFit()
                             .frame(width: geometry.size.width, height: geometry.size.height)
                     } else { Text(model.words("Bildschirm wird geladen …", "Loading screen …")).foregroundStyle(Palette.secondary) }
                     if session.frameUnavailable {
@@ -114,27 +133,9 @@ struct TakeoverView: View {
                 .accessibilityAction(named: Text(model.words("Nach unten scrollen", "Scroll down"))) { input(["kind": "scroll", "dy": 500]) }
                 .accessibilityAction(named: Text(model.words("Nach oben scrollen", "Scroll up"))) { input(["kind": "scroll", "dy": -500]) }
             }
-            if keyboard {
-                HStack {
-                    SecureField(model.words("Text oder Code eingeben", "Enter text or code"), text: $typed)
-                        .textContentType(.oneTimeCode).textInputAutocapitalization(.never).autocorrectionDisabled().focused($typing)
-                        .onSubmit { sendTyped() }
-                    Button(action: sendTyped) { Image(systemName: "arrow.up") }.disabled(typed.isEmpty)
-                        .accessibilityLabel(model.words("Text eingeben", "Type text"))
-                    Button { input(["kind": "key", "key": "Backspace"]) } label: { Image(systemName: "delete.left") }
-                        .accessibilityLabel(model.words("Zeichen löschen", "Delete character"))
-                    Button { input(["kind": "key", "key": "Enter"]) } label: { Image(systemName: "return") }
-                        .accessibilityLabel(model.words("Eingabetaste", "Enter key"))
-                }.padding(14)
-            }
-            if let error = session.error { Text(error).font(.footnote).padding(.horizontal) }
-            Button(model.words("Fertig, mach weiter", "Done, carry on")) {
-                if !typed.isEmpty { sendTyped() }
-                session.resume(api: model.api, jobID: job.id, language: model.language)
-            }.buttonStyle(.borderedProminent).controlSize(.large).padding(12)
-                .disabled(session.pending > 0)
         }
         .background(Palette.ground).tint(Palette.ink)
+        .overlay(alignment: .bottom) { if let error = session.error { Text(error).font(.footnote).padding().background(.regularMaterial) } }
         // The remote image rectangle stays fixed when the keyboard opens.
         .ignoresSafeArea(.keyboard)
         .task(id: phase) { if phase == .active { await session.poll(api: model.api, jobID: job.id) } }

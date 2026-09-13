@@ -4,7 +4,9 @@ Fresh SwiftUI app for the N-0 API, iOS 17 or later. One application target, `Ola
 
 Open `Ola.xcodeproj`, select the Ola scheme and an iPhone simulator, then Run.
 For a phone, set your development team and signing profile. No credentials are in the project.
-In Settings, enter the server URL and bearer token. Both are stored in the device Keychain.
+Settings defaults to `https://api.tryola.ai/agent/`. Enter the bearer token.
+The server URL and token are stored in the device Keychain. Every route, including
+frames and replay, preserves the `/agent/` prefix.
 Use an address reachable from the phone, not the computer's loopback address.
 Local HTTP servers are supported. Use HTTPS for a remote server.
 
@@ -24,7 +26,7 @@ The app is compiled separately from the portable test package so the Xcode proje
 1. Configure the server. Send a German request with bold/list output. Select part of the growing reply. Repeat in English.
 2. Attach a photo with plus, send it, and ask what it shows.
 3. Ask for several jobs. Watch one card per job, state, step, and screenshot. Stop one job.
-4. When a card waits for you, tap Take over. Tap the remote page, enter text, scroll, and press Done, carry on. Frames poll at two requests per second when the network keeps up. Controls stay outside the image; letterbox taps are ignored.
+4. When a card waits for you, tap Take over. Tap the remote page, enter text, scroll, and press Done, carry on. Frames poll at two requests per second when the network keeps up. The app keeps the original screenshot resolution. Controls stay outside the image; letterbox taps are ignored. Sign-ins happen here, including viewing the WhatsApp Web QR. The remote image keeps its position when the keyboard opens.
 5. Tap the mic. The waveform reflects captured samples. X discards, square puts text in the composer, arrow sends. Speech recognition requires an on-device language model and microphone/speech permission.
 6. Turn on the speaker. Completed replies use the detected reply language. Dictating stops playback.
 7. Background and reopen the app. The locally saved thread reappears; the SSE cursor requests replay and job history restores the cards.
@@ -32,3 +34,15 @@ The app is compiled separately from the portable test package so the Xcode proje
 The backend retains 500 replay events in memory. A server restart or a longer gap can lose unfinished streaming text. A completion event's full text repairs its reply. Chat history is local to this device and connection. The screenshot does not expose the page's accessibility tree; VoiceOver has labeled controls and scroll actions, but arbitrary remote page targets still require sight.
 
 Build success is separate from device acceptance. Microphone, spoken language, selection, keyboard layout, and the real authenticated takeover must be checked on a phone before reporting them as witnessed.
+
+For real-server evidence, install the server's httpx dependency and run:
+
+```sh
+python app/Tools/probe.py --url https://api.tryola.ai/agent/ --env-file server/.env
+OLA_EVENT_FIXTURE="$PWD/app/.evidence/events.sse" swift test --package-path app
+```
+
+The probe asks the real model for one harmless formatted reply and checks authentication,
+chat acceptance, streaming, full-text completion, replay, and the jobs route. Its captured
+SSE bytes then run through the app's actual Swift parser and reducer. Evidence stays in
+the ignored `app/.evidence` directory. A missing live fixture is reported as a skipped test.
