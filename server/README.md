@@ -22,7 +22,8 @@ Alternatively, create the environment with `python3.12 -m venv server/.venv`
 and install with `python -m pip install -e ./server` after activating it.
 The launcher is planned to load `server/.env` and listen on port 8787.
 
-Mail uses `OLA_MAIL_USER` and `OLA_MAIL_APP_PASSWORD` for Gmail SMTP/IMAP.
+WhatsApp uses WhatsApp Web through the browser. Link your session by scanning
+the QR code during takeover.
 Calendar uses `OLA_GOOGLE_REFRESH_TOKEN`, `OLA_GOOGLE_CLIENT_ID`, and
 `OLA_GOOGLE_CLIENT_SECRET`. Use credentials for your own accounts.
 
