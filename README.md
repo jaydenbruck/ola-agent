@@ -41,12 +41,13 @@ The browser uses a persistent profile and a separate page for each job. When a
 site needs sign-in, a code, or a captcha, the job pauses and shows the page for
 you to handle. You resume it when done. The server calls the model through
 OpenRouter; `OLA_MODEL` selects the model, with `x-ai/grok-4.5` as the planned default.
-These interfaces are the architecture contract; implementation is pending.
+The server core is on `main` at `771017b`. Browser and native-app verification
+remain separate from the core checks.
 
 ## Run it
 
-The server entry point and Xcode project have not landed yet. These are the
-planned setup steps, to be verified when they do.
+The server core has landed on `main`. The iOS app is still on its separate
+branch while native compilation runs.
 
 Use Python 3.12. From the repository root on macOS or Linux:
 
@@ -56,7 +57,7 @@ cp .env.example server/.env
 uv venv server/.venv --python 3.12
 . server/.venv/bin/activate
 uv pip install -e ./server
-playwright install chromium
+python -m playwright install chromium
 bash scripts/run_local.sh
 ```
 
@@ -68,7 +69,7 @@ python3.12 -m venv server/.venv
 python -m pip install -e ./server
 ```
 
-The planned server address is `http://localhost:8787`. See
+The local server address is `http://localhost:8787`. See
 [server setup](server/README.md) and the commented [.env.example](.env.example).
 
 The fresh iOS app is available on `n3-app` at `3b2f156`; it has not merged to
@@ -78,10 +79,11 @@ a server URL reachable from the phone and the same `OLA_TOKEN`. The default URL
 is `https://api.tryola.ai/agent/`; the app stores the URL and token in Keychain.
 
 The root `codemagic.yaml` defines core tests, a simulator build, and an unsigned
-device archive. Native compilation and the app merge are pending D-8. Codemagic
-access currently requires GitHub passkey authorization; the founder has been
-asked, and D-8 has been asked to test a token/API alternative. No native build
-or phone acceptance is claimed.
+device archive. D-8 solved private repository access through the authenticated
+API with a repository-only read-only deploy key. No founder passkey step is
+needed. Exact app commit `3b2f156` is building in Codemagic run
+`6aa6df2d26c026ba29891ce7`; compilation and the app merge are still pending.
+No native build success or phone acceptance is claimed.
 
 ## How we tested reliability
 
@@ -104,9 +106,13 @@ On the app branch, run `python app/Tools/test_linux.py` for the Windows-to-WSL
 checks, or `swift test --package-path app` on a Swift 5.9+ host. Reproducing the
 live fixture requires the real-server probe documented in `app/README.md`.
 
-The planned rerun command, from the repository root with the server environment
-activated, is `python scripts/reliability.py`. Its final options and required
-credentials are pending the reliability lane.
+N-1 reports 39 passing server-core unit tests with a fake model. From `server`,
+install test dependencies with `python -m pip install -e '.[test]'`, then run
+`python -m pytest tests/unit -q`. Run `python -m pytest tests/e2e -q` for the
+real-model suite, which skips without a key.
+
+The combined rerun command, from the repository root with the server environment
+activated, is `python scripts/reliability.py`. Use `--help` for its options.
 
 ## Built today
 

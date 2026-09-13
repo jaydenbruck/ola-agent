@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Teach Ola a fact from the command line: python scripts/remember.py "Home: Dieburger Straße 48a, 63303 Dreieich." """
+"""Teach Ola a fact: python scripts/remember.py "I prefer German." """
 import sys
 from pathlib import Path
 
