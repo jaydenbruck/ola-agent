@@ -17,6 +17,8 @@ language and (for uploads) a way to find an attachment on disk.
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import os
 import re
 import time
@@ -24,6 +26,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 from urllib.parse import urlsplit
+
+log = logging.getLogger("ola.browser")
 
 try:
     from fastapi import Depends, HTTPException, Request, Response
@@ -462,7 +466,27 @@ async def _ensure_context() -> Any:
             args=["--disable-blink-features=AutomationControlled", "--lang=de-DE"],
         )
         _context.set_default_timeout(int(ACTION_BUDGET_S * 1000))
+        await _seed_cookies(_context)
         return _context
+
+
+async def _seed_cookies(context: Any) -> None:
+    """Seed session cookies from an operator-placed file (env OLA_SEED_COOKIES, a JSON list in
+    Playwright's add_cookies shape) so a site the founder cannot sign into inside the takeover
+    (LinkedIn's clipped image-captcha) is already logged in. add_cookies is an upsert by
+    name+domain+path, so seeding every startup is idempotent and the persistent profile keeps them.
+    Never logs a cookie's name, value or domain, only the count and the path; a bad or absent file
+    never breaks startup."""
+    seed = os.environ.get("OLA_SEED_COOKIES")
+    if not seed or not Path(seed).is_file():
+        return
+    try:
+        cookies = json.loads(Path(seed).read_text(encoding="utf-8"))
+        if isinstance(cookies, list) and cookies:
+            await context.add_cookies(cookies)
+            log.info("seeded %d cookies from %s", len(cookies), seed)
+    except Exception as e:  # noqa: BLE001  a bad file is skipped, never fatal
+        log.warning("cookie seed skipped: %s", type(e).__name__)
 
 
 async def _session(job_id: str, lang: str = "de") -> _Session:
