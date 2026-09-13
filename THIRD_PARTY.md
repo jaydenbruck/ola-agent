@@ -13,5 +13,5 @@ Do not interpret this preliminary notice as a claim that every future dependency
 is covered by the Ola license.
 
 Apple SDKs and the separately installed Chromium browser retain their own terms
-and third-party notices. External services such as OpenRouter, WhatsApp, and Google
-Calendar are not code included in this repository.
+and third-party notices. External services such as OpenRouter, WhatsApp, Lieferando, Uber, and LinkedIn
+are not code included in this repository.

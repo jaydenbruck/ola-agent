@@ -2,9 +2,9 @@ Demo video: pending the Mission Leader's link.
 
 # Ola
 
-A personal agent you talk to like a friend.
-One request can become several jobs running at once.
-Those jobs use real apps through a browser, WhatsApp, and Google Calendar.
+Ola is a general-purpose agent on a server that can use the web and sign into things.
+You talk to it like a friend; one request can become several jobs running at once.
+Those jobs use Ola's own signed-in browser.
 You see each job's screen and take over when a site needs you.
 Ola keeps talking and comes back with results.
 
@@ -13,9 +13,8 @@ the sections below will be checked against `main` at the submission freeze.
 
 ## External apps
 
-The planned integrations are WhatsApp Web through the browser, Google Calendar
-through its REST API, and Uber, Lieferando, Kleinanzeigen, and LinkedIn through
-the browser.
+The planned integrations are WhatsApp, Lieferando, Uber, and LinkedIn, all through
+Ola's own signed-in browser.
 Live evidence is pending. Listing an app here does not claim a successful run.
 
 ## How it works
@@ -28,10 +27,10 @@ SwiftUI door: chat, job screens, takeover
                     |
               concurrent jobs
                     |
-        +-----------+-----------+
-        |           |           |
-     browser    WhatsApp    Calendar
-        |
+       Ola's own signed-in browser
+                    |
+   WhatsApp / Lieferando / Uber / LinkedIn
+                    |
   page needs you -> takeover -> resume job
 
 Job steps, frames, and results -> event stream -> phone
@@ -98,8 +97,9 @@ Thanks to Python, SwiftUI, FastAPI, Playwright, and OpenRouter.
 
 This is an unfinished hackathon submission. Runtime state, concurrent jobs,
 reminders, site access, and takeover still need verification. Sites can require
-a personal login, reject automation, or change their pages. WhatsApp needs a linked session, and Google Calendar
-needs your own credentials. The local setup uses one shared bearer token.
+a personal login, reject automation, or change their pages. WhatsApp needs a
+linked session. You sign into sites through Ola's browser. The local setup uses
+one shared bearer token.
 The final limits will reflect the code and recorded runs on `main`.
 
 ## License
