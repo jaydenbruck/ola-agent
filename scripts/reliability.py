@@ -179,6 +179,10 @@ def reports(data):
                "German assertion was corrected; all 20 WhatsApp checks then passed. "
                "Swift's parallel xUnit output counted a skipped fixture test as a pass, so the runner now reads serial "
                "XCTest outcomes and checks their count against the suite summary. "
+               "The first combined run on ed14410 recorded 117 passes and two failures. A due reminder spoke before "
+               "its slow acknowledgement; the core now waits for that acknowledgement before delivering the reminder. "
+               "WhatsApp showed an IndexedDB error under the deeply nested Windows pytest profile path. "
+               "The same QR check passed with a short isolated workspace profile, which the live test now uses. "
                "The founder removed email and Calendar from scope; their tests are excluded from this report.")
     limits = ["WhatsApp needs one QR linking step and an explicitly configured test contact for a live send; a QR screen is not a sent message.",
               "The integrations are WhatsApp, Lieferando, Uber and LinkedIn. Sign-in walls or blocked pages do not prove completed errands.",
@@ -329,7 +333,9 @@ def main():
     else:
         env = environment([*args.env_file, ROOT / "server" / ".env", ROOT.parent / ".env.ola-agent"])
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
+        changes = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all", "--", "server", "scripts", "app"], cwd=ROOT, text=True)
+        dirty = any(Path(line[3:].strip('"')).suffix in {".py", ".swift", ".toml", ".html", ".css", ".js", ".sh"}
+                    for line in changes.splitlines())
         data = {"commit": commit + (" + working-tree changes" if dirty else ""), "source_sha256": source_state(), "started": stamp(), "runs": [],
                 "environment": {"python": platform.python_version(), "platform": platform.system(), "model": env.get("OLA_MODEL", "x-ai/grok-4.5")}}
         (OUT / "app-events.sse").unlink(missing_ok=True)

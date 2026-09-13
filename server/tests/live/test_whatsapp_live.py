@@ -2,6 +2,7 @@
 import json
 import os
 import uuid
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -10,18 +11,30 @@ from ola.tools import whatsapp
 
 
 @pytest.mark.asyncio
-async def test_live_whatsapp_qr_takeover(tmp_path, monkeypatch):
+async def test_live_whatsapp_qr_takeover(monkeypatch):
     """A fresh browser profile reaches the real QR wall and offers its frame for takeover."""
     browser = whatsapp._bridge()
-    monkeypatch.setattr(browser, "PROFILE_DIR", tmp_path / "whatsapp-profile")
+    # WhatsApp's IndexedDB fails under Windows' deeply nested pytest profile path.
+    base = Path(__file__).resolve().parents[3] / "build" / "reliability"
+    base.mkdir(parents=True, exist_ok=True)
+    temporary = tempfile.TemporaryDirectory(prefix="wa-", dir=base)
+    profile = Path(temporary.name).resolve()
+    assert profile.parent == base.resolve()
+    monkeypatch.setattr(browser, "PROFILE_DIR", profile)
     try:
         result = await whatsapp.read_chat(job_id="live-whatsapp-linking", lang="de")
-        assert result.needs_you, "The fresh WhatsApp session did not reach the QR linking wall"
+        if not result.needs_you:
+            diagnostic = Path(__file__).resolve().parents[3] / "build" / "reliability" / "whatsapp-linking-failure.jpg"
+            diagnostic.parent.mkdir(parents=True, exist_ok=True)
+            if result.image:
+                diagnostic.write_bytes(result.image)
+            pytest.fail("Fresh WhatsApp session did not reach QR linking: " + result.text[:1600])
         assert "QR-Code" in result.needs_you["reason"]
         assert result.needs_you["url"].startswith(whatsapp.HOME)
         assert result.image and result.image[:2] == b"\xff\xd8", "Takeover has no JPEG frame"
     finally:
         await browser.shutdown()
+        temporary.cleanup()
 
 
 @pytest.mark.asyncio
