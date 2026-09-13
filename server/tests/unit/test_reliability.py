@@ -19,7 +19,7 @@ def test_junit_outcomes(tmp_path):
 
 
 def test_secrets_redacted():
-    env = {"OPENROUTER_API_KEY": "sensitive-key", "OLA_MAIL_USER": "person@example.test", "OLA_GOOGLE_REFRESH_TOKEN": "refresh-me"}
+    env = {"OPENROUTER_API_KEY": "sensitive-key", "OLA_WHATSAPP_TEST_CONTACT": "person@example.test", "EXAMPLE_REFRESH_TOKEN": "refresh-me"}
     assert report.redact("sensitive-key person@example.test refresh-me Bearer access-value", env) == "[redacted] [redacted] [redacted] Bearer [redacted]"
 
 

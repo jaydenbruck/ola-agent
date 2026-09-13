@@ -38,7 +38,7 @@ def environment(paths):
 
 def redact(text, env):
     values = [v for k, v in env.items() if v and len(v) >= 4 and
-              any(part in k for part in ("KEY", "TOKEN", "PASSWORD", "SECRET", "OLA_MAIL_USER", "CLIENT_ID"))]
+              any(part in k for part in ("KEY", "TOKEN", "PASSWORD", "SECRET", "OLA_WHATSAPP_TEST_CONTACT", "CLIENT_ID"))]
     for value in sorted(values, key=len, reverse=True):
         text = text.replace(value, "[redacted]")
     return re.sub(r"Bearer\s+[\w.\-]+", "Bearer [redacted]", text, flags=re.I)
@@ -88,9 +88,8 @@ def run_suite(suite, env, timeout):
 
 def capability(case):
     name = (case["class"] + " " + case["name"]).lower()
-    if any(word in name for word in ("calendar", "smtp", "imap", "mail", "recipient", "header_injection", "query", "count")):
-        # Mail/calendar share a test module, so use the function name to separate them.
-        return "Mail and calendar"
+    if "whatsapp" in name:
+        return "WhatsApp"
     if any(word in name for word in ("browser", "site", "takeover", "signin", "snapshot")):
         return "Browser and takeover"
     if "remind" in name:
@@ -102,6 +101,16 @@ def capability(case):
 
 def proves(case):
     """Test names are evidence identifiers; descriptions stay limited to what tests assert."""
+    descriptions = {
+        "junit_outcomes": "Keeps passes, failures, skips and setup errors distinct",
+        "secrets_redacted": "Removes configured secrets and access tokens from saved evidence",
+        "environment_precedence": "Preserves explicit environment settings when loading a file",
+        "collection_failure_is_error": "A failed or empty test collection is an error",
+        "timeout_is_error": "An unfinished suite is an error",
+    }
+    name, _, variant = case["name"].removeprefix("test_").partition("[")
+    if name in descriptions:
+        return descriptions[name] + (". Case: " + variant.rstrip("]") if variant else "")
     text = re.sub(r"^test_", "", case["name"]).replace("_", " ")
     return text[0].upper() + text[1:] if text else "Unnamed check"
 
@@ -114,16 +123,17 @@ def reports(data):
                 f"{counts['error']} errors and {counts['skipped']} skipped. {len(cases)} evidence rows including collection errors.")
     metadata = f"Tested commit {data['commit']}. Window {data['started']} to {data['ended']}."
     method = ("The runner executes the entire unit directory, then e2e, then live, using the same Python environment. "
-              "Each row comes from pytest JUnit output, with parameter cases counted separately. Local mail checks use "
-              "SMTP STARTTLS and IMAP TLS socket servers; Calendar checks use a local HTTP server. E2e checks use the real "
+              "Each row comes from pytest JUnit output, with parameter cases counted separately. WhatsApp checks exercise "
+              "the browser wrapper against local pages. E2e checks use the real "
               "model when configured. Live checks require their account credentials. A skip proves nothing about a live service. "
               "Raw sanitized XML, command logs and the run manifest are stored under build/reliability. No count is a success-rate forecast.")
     failures = [f"{proves(c)}: {c['detail']}" for c in cases if c["state"] in ("failed", "error")]
-    history = ("The first adapter run had 45 passes and two failures. The local SMTP stub compared commands "
-               "case-sensitively and rejected Python's lowercase EHLO. We fixed the stub to accept command verbs "
-               "case-insensitively. The next run passed all 47 adapter checks. This was a test-server defect, not proof of a live mail send.")
-    limits = ["Live mail and Calendar results depend on configured test accounts; missing credentials remain visible as skips.",
-              "Real sites can require sign-in or block automation. Local fixtures and page loads do not establish successful real errands.",
+    history = ("The first real WhatsApp visit showed a browser compatibility screen with Playwright's default "
+               "headless identity. Using a desktop Chrome identity reached the real QR linking page. The browser lane "
+               "was given that finding so linking and takeover use the same persistent session. No message was sent in that probe. "
+               "The founder removed email and Calendar from scope; their tests are excluded from this report.")
+    limits = ["WhatsApp needs one QR linking step and an explicitly configured test contact for a live send; a QR screen is not a sent message.",
+              "The integrations are WhatsApp, Lieferando, Uber and LinkedIn. Sign-in walls or blocked pages do not prove completed errands.",
               "This is one run of Ola, a hackathon project by Jayden Bruck. It does not prove phone acceptance or production reliability."]
     escape = lambda value: str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
     md = ["# Ola reliability", "", "Ola is a hackathon project by Jayden Bruck.", "", overview, "", metadata, "", "## Method", "", method, ""]
