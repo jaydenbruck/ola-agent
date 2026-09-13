@@ -18,7 +18,7 @@ BSD-3-Clause with additional third-party components under their own licenses. Te
 extras (pytest and plugins) are MIT.
 
 The model is reached over HTTP through OpenRouter; speech and transcription over HTTP
-through OpenAI. No provider SDK is vendored only `httpx` calls.
+through OpenAI. No provider SDK is vendored; the code makes plain `httpx` calls.
 
 ## App (Swift)
 
