@@ -24,6 +24,10 @@ H = {"Authorization": "Bearer secret"}
 
 def script(messages, tools):
     if is_job(messages):
+        if "Pizza" in messages[1]["content"]:
+            if messages[-1]["role"] == "tool":
+                return "Bestellt." if "YES" in messages[-1]["content"] else "Nicht bestellt."
+            return Reply(tool_calls=[call("confirm", cid="c", title="Pizza Margherita, Mozzarella", price="9,90 €", detail="gegen 19:40")])
         if not [m for m in messages if m["role"] == "tool"]:
             return Reply(tool_calls=[call("browser", cid="g", action="goto")])
         return "Erledigt."
@@ -31,6 +35,8 @@ def script(messages, tools):
         return "Fertig."
     if messages[-1]["role"] == "tool":
         return "Mach ich."
+    if "Pizza" in last_user(messages):
+        return Reply(tool_calls=[call("spawn_job", title="Pizza", instructions="Pizza bestellen.")])
     return Reply(tool_calls=[call("spawn_job", title="Uber", instructions="x")])
 
 
@@ -201,3 +207,27 @@ def test_cancel_and_attachments(client):
     r = client.post("/attachments", files={"file": ("pic.jpg", b"\xff\xd8jpeg", "image/jpeg")}, headers=H)
     assert r.status_code == 200 and r.json()["id"] and r.json()["path"].endswith(".jpg")
     assert client.post("/chat", json={"thread_id": "c", "text": ""}, headers=H).status_code == 422
+
+
+def test_confirm_route(client):
+    client.post("/chat", json={"thread_id": "p", "text": "Pizza bitte."}, headers=H)
+    rows = wait_jobs(client, "p", lambda rows: rows and rows[0]["state"] == "confirm")
+    job_id = rows[0]["job_id"]
+    assert rows[0]["confirm"] == {"title": "Pizza Margherita, Mozzarella", "price": "9,90 €", "detail": "gegen 19:40"}
+    assert client.post(f"/jobs/{job_id}/confirm", json={"answer": "maybe"}, headers=H).status_code == 422
+    assert client.post("/jobs/nope/confirm", json={"answer": "yes"}, headers=H).status_code == 404
+    assert client.post(f"/jobs/{job_id}/confirm", json={"answer": "yes"}).status_code == 401
+    r = client.post(f"/jobs/{job_id}/confirm", json={"answer": "yes"}, headers=H)
+    assert r.status_code == 200 and r.json() == {"job_id": job_id, "state": "running", "answer": "yes"}
+    assert client.post(f"/jobs/{job_id}/confirm", json={"answer": "yes"}, headers=H).status_code == 409
+    with client.stream("GET", "/events/p", params={"after": 0}, headers=H) as s:
+        got = []
+        for line in s.iter_lines():
+            if line.startswith("data:"):
+                got.append(json.loads(line[5:]))
+                if got[-1]["type"] == "job.done":
+                    break
+    kinds = [e["type"] for e in got]
+    card = next(e for e in got if e["type"] == "job.confirm")
+    assert card["title"] == "Pizza Margherita, Mozzarella" and card["price"] == "9,90 €" and card["detail"] == "gegen 19:40"
+    assert kinds[kinds.index("job.confirm") + 1] == "job.step" and got[-1]["result"] == "Bestellt."

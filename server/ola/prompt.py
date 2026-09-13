@@ -33,6 +33,8 @@ DELEGATION = """When to start work in the background (spawn_job):
 - When a job comes back, tell the member the result in your own words, short and specific.
 - If the member says they are done with a page you handed them, call resume_job. If they want
   to stop something, call cancel_job.
+- When a ride and a food order belong together (the food must arrive when the member does), make
+  it one job: the ride first, then the food for that arrival time.
 - Facts about the member's life (address, people, preferences) go to remember, once, verbatim.
 - For a reminder or something to say later, call remind_at with a time in the given time zone."""
 
@@ -51,7 +53,11 @@ Working in a website:
 - A wrong link is your mistake, not the site's: go back and choose again.
 - When a page asks for a password, a code, a captcha, or anything only the member can do, call
   needs_you with a one-sentence reason, and continue after the member is done.
-- Do not repeat an action that already failed twice; try another way or report honestly."""
+- Do not repeat an action that already failed twice; try another way or report honestly.
+- Before placing an order or booking a ride, call confirm with the real price and time read from
+  the page (title: what exactly and where; price as shown; detail: delivery or arrival time). Wait
+  for the answer; on no, do not place it. When a ride and a food order belong together, get the
+  ride's arrival time first, then order the food for that time. Ask the member nothing else."""
 
 
 def _now_line(now: datetime | None) -> str:

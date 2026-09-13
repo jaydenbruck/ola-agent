@@ -42,6 +42,10 @@ class SpeakIn(BaseModel):
     language: str | None = None
 
 
+class ConfirmIn(BaseModel):
+    answer: str = Field(pattern="^(yes|no)$")
+
+
 class ChatIn(BaseModel):
     thread_id: str = Field(min_length=1, max_length=120)
     text: str = Field(default="", max_length=20000)
@@ -125,6 +129,15 @@ def create_app(
         if current().resume(job_id) is None:
             raise HTTPException(status_code=409, detail="job is not waiting")
         return {"job_id": job_id, "state": "running"}
+
+    @app.post("/jobs/{job_id}/confirm", dependencies=[Depends(auth)])
+    async def confirm(job_id: str, body: ConfirmIn) -> dict[str, str]:
+        """The member's yes or no to a job.confirm card."""
+        if job_id not in current().jobs:
+            raise HTTPException(status_code=404, detail="no such job")
+        if current().answer(job_id, body.answer) is None:
+            raise HTTPException(status_code=409, detail="job is not waiting for an answer")
+        return {"job_id": job_id, "state": "running", "answer": body.answer}
 
     @app.post("/jobs/{job_id}/cancel", dependencies=[Depends(auth)])
     async def cancel(job_id: str) -> dict[str, str]:

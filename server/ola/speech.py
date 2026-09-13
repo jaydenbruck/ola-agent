@@ -1,4 +1,5 @@
-"""Ola's spoken voice: OpenAI text-to-speech (gpt-4o-mini-tts), mp3 bytes for the app."""
+"""Ola's spoken voice: OpenAI text-to-speech, mp3 bytes for the app. Default tts-1-hd (the clean
+classic OpenAI voices); gpt-4o-mini-tts also works and then gets the voice instructions."""
 
 from __future__ import annotations
 
@@ -8,8 +9,9 @@ import re
 import httpx
 
 TTS_URL = "https://api.openai.com/v1/audio/speech"
-TTS_MODEL = "gpt-4o-mini-tts"
+DEFAULT_TTS_MODEL = "tts-1-hd"
 DEFAULT_VOICE = "nova"
+INSTRUCTABLE = ("gpt-4o-mini-tts",)  # only these models accept an instructions field
 MAX_CHARS = 1500
 LANGUAGE_NAMES = {"de": "German", "en": "English"}
 
@@ -41,9 +43,16 @@ def instructions(language: str | None) -> str:
 
 
 class Speech:
-    def __init__(self, api_key: str | None = None, voice: str | None = None, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        voice: str | None = None,
+        client: httpx.AsyncClient | None = None,
+        model: str | None = None,
+    ) -> None:
         self.api_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY", "")
         self.voice = voice or os.environ.get("OLA_TTS_VOICE") or DEFAULT_VOICE
+        self.model = model or os.environ.get("OLA_TTS_MODEL") or DEFAULT_TTS_MODEL
         self._client = client or httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=15.0))
 
     async def aclose(self) -> None:
@@ -55,13 +64,9 @@ class Speech:
         plain = strip_markdown(text)[:MAX_CHARS].strip()
         if not plain:
             raise SpeechUnavailable("nothing to say")
-        body = {
-            "model": TTS_MODEL,
-            "voice": self.voice,
-            "input": plain,
-            "response_format": "mp3",
-            "instructions": instructions(language),
-        }
+        body = {"model": self.model, "voice": self.voice, "input": plain, "response_format": "mp3"}
+        if self.model in INSTRUCTABLE:
+            body["instructions"] = instructions(language)
         try:
             r = await self._client.post(TTS_URL, json=body, headers={"Authorization": f"Bearer {self.api_key}"})
         except httpx.HTTPError as e:

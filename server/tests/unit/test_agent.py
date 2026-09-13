@@ -267,7 +267,7 @@ async def test_unknown_tool_gets_the_real_list(make_agent, bus):
     assert seen[0].startswith("No tool named 'teleport'. The tools are: ")
     assert "spawn_job" in seen[0] and "remind_at" in seen[0] and "ping" not in seen[0]
     await drain(bus, T, lambda h: "job.done" in types(h))
-    assert seen[-1] == "No tool named 'fly'. The tools are: ping."
+    assert seen[-1] == "No tool named 'fly'. The tools are: ping, confirm."
 
 
 async def test_language_and_facts_in_prompt(make_agent):
@@ -289,7 +289,7 @@ async def test_job_sees_only_job_tools_and_gets_the_member_language(make_agent, 
 
     def script(messages, tools):
         if is_job(messages):
-            assert tool_names(tools) == ["ping"]
+            assert tool_names(tools) == ["ping", "confirm"]
             assert "The member's language: German" in messages[0]["content"]
             return "Fertig."
         if messages[-1]["role"] == "tool":
@@ -389,3 +389,67 @@ async def test_cancel_while_waiting_clears_needs_you(make_agent, bus):
     assert job.state == "cancelled" and job.needs_you is None
     assert agent.list_jobs(T, everything=True)[0]["needs_you"] is None
     assert f"closed:{job_id}" in resume_calls and resume_calls[0] != job_id, "after_resume is not called on cancel"
+
+
+async def test_confirm_card_yes_and_no(make_agent, bus):
+    reg = ping_registry()
+    seen: list[str] = []
+
+    def script(messages, tools):
+        if is_job(messages):
+            if messages[-1]["role"] == "tool":
+                seen.append(messages[-1]["content"])
+                return "Bestellt." if "YES" in seen[-1] else "Nicht bestellt."
+            assert "confirm" in tool_names(tools)
+            return Reply(tool_calls=[call("confirm", cid="c", title="Pizza Prosciutto, Pizzeria Mozzarella", price="12,50 €", detail="Lieferung gegen 19:40")])
+        if "background work" in last_user(messages):
+            return "Erledigt."
+        if messages[-1]["role"] == "tool":
+            return "Mach ich."
+        return Reply(tool_calls=[call("spawn_job", title="Pizza", instructions="Bestell eine Pizza.")])
+
+    agent = make_agent(script, reg)
+    agent.start_turn(T, "Bestell mir bitte eine Pizza.")
+    events = await drain(bus, T, lambda h: "job.confirm" in types(h))
+    card = events[-1]
+    assert card == {**card, "title": "Pizza Prosciutto, Pizzeria Mozzarella", "price": "12,50 €", "detail": "Lieferung gegen 19:40"}
+    job_id = card["job_id"]
+    row = agent.list_jobs(T)[0]
+    assert row["state"] == "confirm" and row["confirm"] == {"title": card["title"], "price": "12,50 €", "detail": "Lieferung gegen 19:40"}
+    assert agent.answer("nope", "yes") is None
+    assert agent.answer(job_id, "yes") is not None
+    events = await drain(bus, T, lambda h: "job.done" in types(h))
+    kinds = types(events)
+    step = events[kinds.index("job.confirm") + 1]
+    assert step["type"] == "job.step" and step["text"] == "Bestätigt: Pizza Prosciutto, Pizzeria Mozzarella, 12,50 €."
+    assert "YES" in seen[-1] and next(e for e in events if e["type"] == "job.done")["result"] == "Bestellt."
+    assert agent.list_jobs(T, everything=True)[0]["confirm"] is None
+    assert agent.answer(job_id, "yes") is None, "not waiting any more"
+
+    # a second job, answered no
+    agent.start_turn(T, "Und noch eine Pizza bitte.")
+    events = await drain(bus, T, lambda h: types(h).count("job.confirm") == 2)
+    job2 = events[-1]["job_id"]
+    assert agent.answer(job2, "no") is not None
+    events = await drain(bus, T, lambda h: types(h).count("job.done") == 2)
+    assert "NO" in seen[-1] and [e for e in events if e["type"] == "job.done"][-1]["result"] == "Nicht bestellt."
+    assert "Abgelehnt: Pizza Prosciutto" in [e["text"] for e in events if e["type"] == "job.step"][-1]
+
+
+async def test_confirm_without_price_is_an_error_not_a_card(make_agent, bus):
+    seen: list[str] = []
+
+    def script(messages, tools):
+        if is_job(messages):
+            if messages[-1]["role"] == "tool":
+                seen.append(messages[-1]["content"])
+                return "Fertig."
+            return Reply(tool_calls=[call("confirm", cid="c", title="Pizza")])
+        if messages[-1]["role"] == "tool":
+            return "Ok."
+        return Reply(tool_calls=[call("spawn_job", title="Pizza", instructions="x")])
+
+    agent = make_agent(script, ping_registry())
+    agent.start_turn(T, "Pizza bitte.")
+    events = await drain(bus, T, lambda h: "job.done" in types(h))
+    assert "job.confirm" not in types(events) and seen[0].startswith("Error: confirm needs title and price")

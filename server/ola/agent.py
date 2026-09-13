@@ -34,6 +34,9 @@ ATTACHMENTS_DIR = Path(os.environ.get("OLA_ATTACHMENTS_DIR") or Path(__file__).r
 STOPPED = {"de": "Gestoppt.", "en": "Stopped."}
 FAILED = {"de": "Das hat nicht geklappt.", "en": "That did not work."}
 OUT_OF_STEPS = {"de": "Ich bin nicht weitergekommen.", "en": "I could not get further."}
+ACTIVE = ("running", "needs_you", "confirm")
+CONFIRMED = {"de": "Bestätigt", "en": "Confirmed"}
+DECLINED = {"de": "Abgelehnt", "en": "Declined"}
 NO_TOOLS = {"de": "Ich habe gerade keinen Zugang zu Apps oder Websites.", "en": "I have no access to apps or websites right now."}
 
 
@@ -64,13 +67,16 @@ class Job:
     title: str
     instructions: str
     lang: str
-    state: str = "running"  # running | needs_you | done | failed | cancelled
+    state: str = "running"  # running | needs_you | confirm | done | failed | cancelled
     last_step: str = ""
     needs_you: dict[str, str] | None = None
+    confirm: dict[str, str] | None = None  # pending yes/no: {title, price, detail}
+    answer: str | None = None
     result: str = ""
     created: float = field(default_factory=time.time)
     task: asyncio.Task[None] | None = None
     resume_event: asyncio.Event = field(default_factory=asyncio.Event)
+    answer_event: asyncio.Event = field(default_factory=asyncio.Event)
 
     def row(self, frame_url: str | None) -> dict[str, Any]:
         return {
@@ -81,6 +87,7 @@ class Job:
             "last_step": self.last_step,
             "frame_url": frame_url,
             "needs_you": self.needs_you,
+            "confirm": self.confirm,
         }
 
 
@@ -203,7 +210,7 @@ class Agent:
         running = "\n".join(
             f"- {j.id}: {j.title} ({j.state}{': ' + j.needs_you['reason'] if j.needs_you else ''})"
             for j in self.jobs.values()
-            if j.state in ("running", "needs_you")
+            if j.state in ACTIVE
         )
         return prompts.turn_prompt(self.memory.prompt_block(), lang, running, self.now())
 
@@ -224,8 +231,8 @@ class Agent:
         ]
         outcome = "failed"
         try:
-            if not self.registry.schemas("job"):
-                raise NoTools()
+            if not [n for n in self.registry.names("job") if n != "confirm"]:
+                raise NoTools()  # confirm alone cannot act in any app
             for _step in range(MAX_JOB_STEPS):
                 reply = await self.model.chat(messages, tools=self.registry.schemas("job"))
                 messages.append(assistant_message(reply))
@@ -246,6 +253,8 @@ class Agent:
                     self.bus.emit(job.thread_id, event)
                     if result.needs_you:
                         result = await self._wait_for_member(job, ctx, result.needs_you)
+                    elif result.confirm:
+                        result = await self._wait_for_answer(job, result.confirm)
                     messages.append(tool_result_message(call.id, result.text, result.image))
             else:
                 job.result = OUT_OF_STEPS.get(job.lang, OUT_OF_STEPS["en"])
@@ -284,6 +293,32 @@ class Agent:
         job.needs_you = None
         return await self.registry.after_resume(ctx)
 
+    async def _wait_for_answer(self, job: Job, ask: dict[str, str]) -> ToolResult:
+        """The yes/no card: the job waits until POST /jobs/{id}/confirm answers."""
+        job.state = "confirm"
+        job.confirm = {k: str(ask.get(k, "")) for k in ("title", "price", "detail")}
+        job.answer = None
+        job.answer_event.clear()
+        self.bus.emit(job.thread_id, {"type": "job.confirm", "job_id": job.id, **job.confirm})
+        await job.answer_event.wait()
+        yes = job.answer == "yes"
+        word = (CONFIRMED if yes else DECLINED).get(job.lang) or (CONFIRMED if yes else DECLINED)["en"]
+        job.last_step = f"{word}: {job.confirm['title']}, {job.confirm['price']}."
+        job.state = "running"
+        job.confirm = None
+        self.bus.emit(job.thread_id, {"type": "job.step", "job_id": job.id, "text": job.last_step})
+        if yes:
+            return ToolResult(text="The member answered YES. Go ahead and complete it now.")
+        return ToolResult(text="The member answered NO. Do not place it. Stop this task and report that it was not placed.")
+
+    def answer(self, job_id: str, answer: str) -> Job | None:
+        job = self.jobs.get(job_id)
+        if job is None or job.state != "confirm":
+            return None
+        job.answer = answer
+        job.answer_event.set()
+        return job
+
     def resume(self, job_id: str) -> Job | None:
         job = self.jobs.get(job_id)
         if job is None or job.state != "needs_you":
@@ -294,7 +329,7 @@ class Agent:
 
     async def cancel(self, job_id: str) -> Job | None:
         job = self.jobs.get(job_id)
-        if job is None or job.state not in ("running", "needs_you") or job.task is None:
+        if job is None or job.state not in ACTIVE or job.task is None:
             return None
         job.task.cancel()
         try:
@@ -308,9 +343,9 @@ class Agent:
         for job in self.jobs.values():
             if thread_id and job.thread_id != thread_id:
                 continue
-            if not everything and job.state not in ("running", "needs_you"):
+            if not everything and job.state not in ACTIVE:
                 continue
-            rows.append(job.row(self.registry.frame_url(job.id) if job.state in ("running", "needs_you") else None))
+            rows.append(job.row(self.registry.frame_url(job.id) if job.state in ACTIVE else None))
         return rows
 
     async def shutdown(self) -> None:
@@ -353,6 +388,12 @@ class Agent:
         async def remember(args: dict[str, Any], ctx: Context) -> str:
             return self.memory.remember(str(args.get("fact", "")))
 
+        async def confirm(args: dict[str, Any], ctx: Context) -> ToolResult:
+            ask = {k: str(args.get(k, "")).strip() for k in ("title", "price", "detail")}
+            if not ask["title"] or not ask["price"]:
+                return ToolResult(text="Error: confirm needs title and price read from the page.", ok=False)
+            return ToolResult(text="waiting for the member", step=f"{ask['title']}, {ask['price']}?", confirm=ask)
+
         obj = {"type": "object", "properties": {"job_id": {"type": "string"}}, "required": ["job_id"]}
         reg.register(
             "spawn_job",
@@ -378,6 +419,23 @@ class Agent:
             remember,
             "turn",
             True,
+        )
+        reg.register(
+            "confirm",
+            "Before placing an order or booking a ride: show the member a yes/no card with the real price and time "
+            "read from the page, and wait for the answer. Ask nothing else.",
+            {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "What exactly, e.g. 'Pizza Prosciutto, Pizzeria Mozzarella'"},
+                    "price": {"type": "string", "description": "The price as shown, e.g. '12,50 €'"},
+                    "detail": {"type": "string", "description": "Time or route as shown, e.g. 'delivery around 19:40'"},
+                },
+                "required": ["title", "price"],
+            },
+            confirm,
+            scope="job",
+            with_ctx=True,
         )
         self.reminders.register(reg)
 

@@ -37,9 +37,13 @@ async def test_speak_sends_plain_text_to_openai_and_returns_mp3():
     audio = await sp.speak("**Hallo** Jayden, " + "x" * 2000, "de")
     assert audio == b"ID3mp3"
     body = seen[0]
-    assert body["model"] == "gpt-4o-mini-tts" and body["voice"] == "nova" and body["response_format"] == "mp3"
+    assert body["model"] == "tts-1-hd" and body["voice"] == "nova" and body["response_format"] == "mp3"
     assert body["input"].startswith("Hallo Jayden, x") and len(body["input"]) == MAX_CHARS
-    assert "German" in body["instructions"] and body["auth"] == "Bearer k"
+    assert "instructions" not in body, "the classic voices take no instructions field"
+    assert body["auth"] == "Bearer k"
+    sp = Speech(api_key="k", voice="nova", client=stub(seen=seen), model="gpt-4o-mini-tts")
+    await sp.speak("Hallo", "de")
+    assert seen[1]["model"] == "gpt-4o-mini-tts" and "German" in seen[1]["instructions"]
 
 
 async def test_speak_failures_are_plain():

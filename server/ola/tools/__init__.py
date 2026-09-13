@@ -43,6 +43,7 @@ class ToolResult:
     needs_you: dict[str, str] | None = None
     code: str | None = None  # additive: a browser tool may carry a WhatsApp link code for the app
     code_hint: str | None = None
+    confirm: dict[str, str] | None = None  # {title, price, detail}: the job waits for the member's yes/no
 
 
 @dataclass
