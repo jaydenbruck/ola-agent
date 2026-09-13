@@ -1,0 +1,6 @@
+{
+  "pdf_sha256": "e287afcabd4c54f2c182e9dca3c0c1b83acf60f0e60063769731872fb4b5eb83",
+  "pages": 10,
+  "review": "All ten pages rendered with PDFium and inspected as images; A4, page numbers, complete tables, no excluded-site mentions.",
+  "tested_commit": "4fcc52ff398e28555143a75ec8b9aafd0690ebb9"
+}

@@ -1,0 +1,61 @@
+Test Suite 'All tests' started at 2026-09-13 20:31:18.145
+Test Suite 'debug.xctest' started at 2026-09-13 20:31:18.204
+Test Suite 'CoreTests' started at 2026-09-13 20:31:18.204
+Test Case 'CoreTests.testBlankEventsCommentsAndIncompleteDisconnect' started at 2026-09-13 20:31:18.204
+Test Case 'CoreTests.testBlankEventsCommentsAndIncompleteDisconnect' passed (0.001 seconds)
+Test Case 'CoreTests.testByteBoundariesAndMultiline' started at 2026-09-13 20:31:18.205
+Test Case 'CoreTests.testByteBoundariesAndMultiline' passed (0.002 seconds)
+Test Case 'CoreTests.testCRAndPersistentIDAndEmptyData' started at 2026-09-13 20:31:18.207
+Test Case 'CoreTests.testCRAndPersistentIDAndEmptyData' passed (0.0 seconds)
+Test Case 'CoreTests.testCapturedRealServerEvents' started at 2026-09-13 20:31:18.207
+Test Case 'CoreTests.testCapturedRealServerEvents' passed (0.001 seconds)
+Test Case 'CoreTests.testCompletionRepairsMissingDeltas' started at 2026-09-13 20:31:18.207
+Test Case 'CoreTests.testCompletionRepairsMissingDeltas' passed (0.0 seconds)
+Test Case 'CoreTests.testConcurrentRepliesCompleteOnce' started at 2026-09-13 20:31:18.208
+Test Case 'CoreTests.testConcurrentRepliesCompleteOnce' passed (0.1 seconds)
+Test Case 'CoreTests.testEveryCardTransitionAndNoDuplicate' started at 2026-09-13 20:31:18.308
+Test Case 'CoreTests.testEveryCardTransitionAndNoDuplicate' passed (0.0 seconds)
+Test Case 'CoreTests.testFailureAndReorderedCard' started at 2026-09-13 20:31:18.309
+Test Case 'CoreTests.testFailureAndReorderedCard' passed (0.0 seconds)
+Test Case 'CoreTests.testFittedFrameRejectsLetterbox' started at 2026-09-13 20:31:18.309
+Test Case 'CoreTests.testFittedFrameRejectsLetterbox' passed (0.0 seconds)
+Test Case 'CoreTests.testPublicDoorPrefixOnEveryRoute' started at 2026-09-13 20:31:18.309
+Test Case 'CoreTests.testPublicDoorPrefixOnEveryRoute' passed (0.002 seconds)
+Test Case 'CoreTests.testRejectedInputCannotCountAsAnAcceptedAction' started at 2026-09-13 20:31:18.311
+Test Case 'CoreTests.testRejectedInputCannotCountAsAnAcceptedAction' passed (0.0 seconds)
+Test Case 'CoreTests.testShutdownCommentRequestsReconnectWithoutChangingCursor' started at 2026-09-13 20:31:18.311
+Test Case 'CoreTests.testShutdownCommentRequestsReconnectWithoutChangingCursor' passed (0.101 seconds)
+Test Case 'CoreTests.testSnapshotAndPersistence' started at 2026-09-13 20:31:18.413
+Test Case 'CoreTests.testSnapshotAndPersistence' passed (0.001 seconds)
+Test Suite 'CoreTests' passed at 2026-09-13 20:31:18.414
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.21 (0.21) seconds
+Test Suite 'debug.xctest' passed at 2026-09-13 20:31:18.414
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.21 (0.21) seconds
+Test Suite 'All tests' passed at 2026-09-13 20:31:18.414
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.21 (0.21) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.0.3 (18c42c19cac3faf)
+✔ Test run with 0 tests passed after 0.001 seconds.
+Building for debugging...
+[0/13] Write swift-version--4FCB2A318E7943F6.txt
+[1/13] Write sources
+[4/14] Emitting module OlaCore
+[5/15] Compiling OlaCore Core.swift
+[7/17] Emitting module OlaCoreTests
+[8/18] Compiling OlaCoreTests CoreTests.swift
+[9/19] Wrapping AST for OlaCore for debugging
+[10/19] Wrapping AST for OlaCoreTests for debugging
+[11/19] /tmp/ola-reliability-d81cdae9c74343c7b29ceed0749d8c5a/.build/x86_64-unknown-linux-gnu/debug/OlaCorePackageDiscoveredTests.derived/all-discovered-tests.swift
+[12/19] Write sources
+[14/20] Emitting module OlaCorePackageDiscoveredTests
+[15/22] Compiling OlaCorePackageDiscoveredTests OlaCoreTests.swift
+[16/22] Compiling OlaCorePackageDiscoveredTests all-discovered-tests.swift
+[17/23] /tmp/ola-reliability-d81cdae9c74343c7b29ceed0749d8c5a/.build/x86_64-unknown-linux-gnu/debug/OlaCorePackageTests.derived/runner.swift
+[18/23] Wrapping AST for OlaCorePackageDiscoveredTests for debugging
+[19/23] Write sources
+[21/24] Emitting module OlaCorePackageTests
+[22/25] Compiling OlaCorePackageTests runner.swift
+[23/26] Wrapping AST for OlaCorePackageTests for debugging
+[24/26] Write Objects.LinkFileList
+[25/26] Linking OlaCorePackageTests.xctest
+Build complete! (10.02s)

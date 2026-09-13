@@ -1,0 +1,30 @@
+{"type": "assistant.delta", "turn_id": "e511927b362e", "text": "Ich", "seq": 1, "thread_id": "e2e-wire", "ts": 1789324108.896}
+{"type": "assistant.delta", "turn_id": "e511927b362e", "text": " sch", "seq": 2, "thread_id": "e2e-wire", "ts": 1789324108.896}
+{"type": "assistant.delta", "turn_id": "e511927b362e", "text": "au", "seq": 3, "thread_id": "e2e-wire", "ts": 1789324108.931}
+{"type": "assistant.delta", "turn_id": "e511927b362e", "text": " nach", "seq": 4, "thread_id": "e2e-wire", "ts": 1789324108.975}
+{"type": "assistant.delta", "turn_id": "e511927b362e", "text": ".", "seq": 5, "thread_id": "e2e-wire", "ts": 1789324109.019}
+{"type": "job.started", "job_id": "0855c9da", "title": "Kontostand prüfen", "seq": 6, "thread_id": "e2e-wire", "ts": 1789324110.9}
+{"type": "assistant.done", "turn_id": "e511927b362e", "text": "Ich schau nach.", "seq": 7, "thread_id": "e2e-wire", "ts": 1789324112.826}
+{"type": "job.step", "job_id": "0855c9da", "text": "127.0.0.1 geöffnet.", "frame_url": "/jobs/0855c9da/frame.jpg?t=1789324114183", "seq": 8, "thread_id": "e2e-wire", "ts": 1789324114.251}
+{"type": "job.step", "job_id": "0855c9da", "text": "Hier brauche ich dich: Bitte Benutzername und Passwort eingeben und anmelden.", "frame_url": "/jobs/0855c9da/frame.jpg?t=1789324116298", "seq": 9, "thread_id": "e2e-wire", "ts": 1789324116.338}
+{"type": "job.needs_you", "job_id": "0855c9da", "reason": "Bitte Benutzername und Passwort eingeben und anmelden.", "url": "http://127.0.0.1:61871/signin.html", "seq": 10, "thread_id": "e2e-wire", "ts": 1789324116.338}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": "Die", "seq": 11, "thread_id": "e2e-wire", "ts": 1789324118.326}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": "burger", "seq": 12, "thread_id": "e2e-wire", "ts": 1789324118.33}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": " Straße", "seq": 13, "thread_id": "e2e-wire", "ts": 1789324118.356}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": " ", "seq": 14, "thread_id": "e2e-wire", "ts": 1789324118.357}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": "48", "seq": 15, "thread_id": "e2e-wire", "ts": 1789324118.357}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": "a", "seq": 16, "thread_id": "e2e-wire", "ts": 1789324118.357}
+{"type": "assistant.delta", "turn_id": "0620973f4b2b", "text": ".", "seq": 17, "thread_id": "e2e-wire", "ts": 1789324118.4}
+{"type": "assistant.done", "turn_id": "0620973f4b2b", "text": "Dieburger Straße 48a.", "seq": 18, "thread_id": "e2e-wire", "ts": 1789324118.407}
+{"type": "job.done", "job_id": "0855c9da", "result": "Dein Kontostand: **42,00 €**.", "seq": 19, "thread_id": "e2e-wire", "ts": 1789324121.632}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": "Dein", "seq": 20, "thread_id": "e2e-wire", "ts": 1789324124.222}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": " Kont", "seq": 21, "thread_id": "e2e-wire", "ts": 1789324124.222}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": "ost", "seq": 22, "thread_id": "e2e-wire", "ts": 1789324124.271}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": "and", "seq": 23, "thread_id": "e2e-wire", "ts": 1789324124.271}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": " liegt", "seq": 24, "thread_id": "e2e-wire", "ts": 1789324124.271}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": " bei", "seq": 25, "thread_id": "e2e-wire", "ts": 1789324124.328}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": " ", "seq": 26, "thread_id": "e2e-wire", "ts": 1789324124.328}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": "42", "seq": 27, "thread_id": "e2e-wire", "ts": 1789324124.328}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": " €", "seq": 28, "thread_id": "e2e-wire", "ts": 1789324124.328}
+{"type": "assistant.delta", "turn_id": "dceec2563555", "text": ".", "seq": 29, "thread_id": "e2e-wire", "ts": 1789324124.384}
+{"type": "assistant.done", "turn_id": "dceec2563555", "text": "Dein Kontostand liegt bei 42 €.", "seq": 30, "thread_id": "e2e-wire", "ts": 1789324124.409}

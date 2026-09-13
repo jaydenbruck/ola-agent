@@ -1,0 +1,13 @@
+........................................................................ [ 66%]
+.....................................                                    [100%]
+============================== warnings summary ===============================
+tests/unit/test_main.py::test_bearer_on_every_route
+  C:\Users\jayde\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/unit/test_main.py::test_bearer_on_every_route
+  C:\Users\jayde\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\websockets\websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+109 passed, 2 warnings in 114.47s (0:01:54)

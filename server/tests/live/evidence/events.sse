@@ -1,0 +1,20 @@
+: connected
+
+id: 1
+data: {"type": "assistant.delta", "turn_id": "df072fdf36d3", "text": "Ja", "seq": 1, "thread_id": "route-chat-available", "ts": 1789324178.811}
+
+id: 2
+data: {"type": "assistant.delta", "turn_id": "df072fdf36d3", "text": ",", "seq": 2, "thread_id": "route-chat-available", "ts": 1789324178.844}
+
+id: 3
+data: {"type": "assistant.delta", "turn_id": "df072fdf36d3", "text": " bin", "seq": 3, "thread_id": "route-chat-available", "ts": 1789324178.844}
+
+id: 4
+data: {"type": "assistant.delta", "turn_id": "df072fdf36d3", "text": " da", "seq": 4, "thread_id": "route-chat-available", "ts": 1789324178.884}
+
+id: 5
+data: {"type": "assistant.delta", "turn_id": "df072fdf36d3", "text": ".", "seq": 5, "thread_id": "route-chat-available", "ts": 1789324178.928}
+
+id: 6
+data: {"type": "assistant.done", "turn_id": "df072fdf36d3", "text": "Ja, bin da.", "seq": 6, "thread_id": "route-chat-available", "ts": 1789324178.942}
+

@@ -192,7 +192,14 @@ def reports(data):
               "This is one run of Ola, a hackathon project by Jayden Bruck. It does not prove phone acceptance or production reliability."]
     escape = lambda value: str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
     # Keep full query strings in the evidence; they obscure the observed outcome in print.
-    readable = lambda value: re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1 [query in evidence log]", str(value))
+    def readable(value):
+        value = str(value)
+        prefix = "BLOCKED: " if value.startswith("BLOCKED:") else ""
+        if "a dialog stayed open on the restaurant list" in value.lower():
+            return prefix + "A dialog remained open on the restaurant list; the cart was not reached. See the live log."
+        if "no fare in euros on the page after both fields were set" in value.lower():
+            return prefix + "No fare was displayed after both route fields were set; the ride options required sign-in. See the live log."
+        return re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1 [query in evidence log]", value)
     md = ["# Ola reliability", "", "Ola is a hackathon project by Jayden Bruck.", "", overview, "", metadata, "", "## Method", "", method, ""]
     sections = []
     if data.get("journeys"):
@@ -214,7 +221,10 @@ def reports(data):
             md.append("| " + " | ".join(escape(v) for v in (proves(case), how, result)) + " |")
             table.append("<tr>" + "".join("<td>" + html.escape(v) + "</td>" for v in (proves(case), how, result)) + "</tr>")
         md.append("")
-        sections.append("<h2>" + html.escape(group) + "</h2><table><thead><tr><th>What it proves</th><th>How it was run</th><th>Result</th></tr></thead><tbody>" + "".join(table) + "</tbody></table>")
+        # Small complete tables keep headers and their outcomes together in print.
+        for offset in range(0, len(table), 18):
+            heading = group + (" (continued)" if offset else "")
+            sections.append("<section class='capability'><h2>" + html.escape(heading) + "</h2><table><thead><tr><th>What it proves</th><th>How it was run</th><th>Result</th></tr></thead><tbody>" + "".join(table[offset:offset + 18]) + "</tbody></table></section>")
     md += ["## What failed and what we changed", "", history, ""]
     md += [escape(f) for f in failures] if failures else ["This report's run has no failed test outcomes or collection errors."]
     md += ["", "## Known limits", "", *[line + "  " for line in limits], ""]
@@ -228,6 +238,7 @@ def reports(data):
     table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:8.5pt; }
     th { text-align:left; background:var(--ground); font-weight:600; } td,th { padding:2.4mm; border-bottom:1px solid var(--hairline); overflow-wrap:anywhere; vertical-align:top; }
     th:first-child { width:45%; } th:nth-child(2) { width:27%; } tr { break-inside:avoid; } thead { display:table-header-group; }
+    .capability { break-inside:avoid; }
     .outcomes th:first-child { width:14%; } .outcomes th:nth-child(2) { width:54%; }
     """
     document = ("<!doctype html><html lang='en'><meta charset='utf-8'><title>Ola reliability</title><style>" + css +
