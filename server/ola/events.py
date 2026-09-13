@@ -49,6 +49,7 @@ class EventBus:
         """SSE text: replayed events after `after`, then live events, with keepalive comments."""
         q = self.subscribe(thread_id)
         try:
+            yield ": connected\n\n"  # first bytes at once, so proxies and the app see an open stream
             last = after
             for e in self.history(thread_id, after):
                 yield sse(e)

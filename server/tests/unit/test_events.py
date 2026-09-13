@@ -37,7 +37,7 @@ async def test_stream_replays_then_goes_live_with_keepalive():
         gen = bus.stream("t", after=1, keepalive=0.05)
         async for chunk in gen:
             got.append(chunk)
-            if len(got) >= 4:
+            if len(got) >= 5:
                 break
         await gen.aclose()
 
@@ -46,5 +46,5 @@ async def test_stream_replays_then_goes_live_with_keepalive():
     bus.emit("t", {"type": "three"})
     await asyncio.wait_for(task, 2)
     kinds = [json.loads(c.split("data: ", 1)[1])["type"] if c.startswith("id:") else c for c in got]
-    assert kinds[0] == "two" and ": keep\n\n" in kinds and kinds[-1] == "three"
+    assert kinds[0] == ": connected\n\n" and kinds[1] == "two" and ": keep\n\n" in kinds and kinds[-1] == "three"
     assert bus._subs == {}, "the subscriber is removed when the stream ends"

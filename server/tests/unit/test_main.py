@@ -130,7 +130,7 @@ def test_chat_events_jobs_resume(client):
     lines, got = read_events(client, params={"after": 0}, until="job.needs_you")
     kinds = [e["type"] for e in got]
     assert kinds[0] == "job.started" and "assistant.done" in kinds and "job.step" in kinds
-    assert lines[0] == f"id: {got[0]['seq']}"
+    assert lines[0] == ": connected" and lines[2] == f"id: {got[0]['seq']}"
     assert got[0]["seq"] == 1 and all(e["thread_id"] == "t" for e in got)
     last = got[-1]["seq"]
 
