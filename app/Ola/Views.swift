@@ -301,6 +301,7 @@ struct Composer: View {
                 .background(.white, in: RoundedRectangle(cornerRadius: 26))
                 .overlay(RoundedRectangle(cornerRadius: 26).stroke(Palette.edge))
             if let error = dictation.error { Text(error).font(.footnote).foregroundStyle(Palette.secondary) }
+            if !model.connected { Text(model.connectionStatus).font(.footnote).foregroundStyle(Palette.secondary) }
         }.padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 8).background(Palette.ground)
             .onChange(of: photo) { _, item in
                 guard let item else { return }
@@ -342,6 +343,8 @@ struct SettingsView: View {
     @State private var server = ""
     @State private var token = ""
     @State private var error: String?
+    @State private var testing = false
+    @State private var testResult: String?
     var body: some View {
         NavigationStack {
             Form {
@@ -350,6 +353,21 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                     SecureField(model.words("Zugangsschlüssel", "Access token"), text: $token)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button(model.words("Verbindung testen", "Test connection")) {
+                        let value = Connection(server: server.trimmingCharacters(in: .whitespacesAndNewlines), token: token.trimmingCharacters(in: .whitespacesAndNewlines))
+                        testing = true; testResult = nil
+                        Task {
+                            defer { testing = false }
+                            do {
+                                guard value.configured else { throw ClientError.configuration }
+                                struct Health: Decodable { let ok: Bool; let model: String }
+                                let data = try await API(connection: value).data("/health")
+                                let health = try JSONDecoder().decode(Health.self, from: data)
+                                testResult = health.ok ? "OK  " + health.model : model.words("Verbindung fehlgeschlagen (ok: false)", "Connection failed (ok: false)")
+                            } catch { testResult = model.connectionReason(error) }
+                        }
+                    }.disabled(testing)
+                    if let testResult { Text(testResult).font(.footnote) }
                 }
                 Picker(model.words("Sprache", "Language"), selection: $model.language) {
                     Text("Deutsch").tag("de"); Text("English").tag("en")
@@ -361,6 +379,7 @@ struct SettingsView: View {
                 ToolbarItem(placement: .cancellationAction) { Button(model.words("Zurück", "Back")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(model.words("Speichern", "Save")) {
+                        guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = model.words("Der Zugangsschlüssel ist leer. Bitte gib ihn ein.", "The access token is empty. Please enter it."); return }
                         do {
                             try model.configure(Connection(server: server.trimmingCharacters(in: .whitespacesAndNewlines), token: token.trimmingCharacters(in: .whitespacesAndNewlines)))
                             dismiss()

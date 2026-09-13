@@ -95,6 +95,7 @@ final class AppModel: ObservableObject {
     @Published var draft = ""
     @Published var attachments: [String] = []
     @Published var connected = false
+    @Published var connectionIssue: String?
     @Published var sending = false
     @Published var uploading = false
     @Published var error: String?
@@ -115,6 +116,17 @@ final class AppModel: ObservableObject {
     var api: API { API(connection: connection) }
     var canSend: Bool { connected && !sending && !uploading && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty) }
     func words(_ de: String, _ en: String) -> String { copy(language, de, en) }
+    var connectionStatus: String {
+        connection.configured ? (connectionIssue ?? words("Verbindung wird hergestellt", "Connecting")) : words("Öffne die Einstellungen (nicht eingerichtet)", "Open Settings (not configured)")
+    }
+    func connectionReason(_ error: Error) -> String {
+        if case ClientError.configuration = error { return words("Öffne die Einstellungen (nicht eingerichtet)", "Open Settings (not configured)") }
+        if case ClientError.response(let status) = error {
+            return words(status == 401 ? "Prüfe den Zugangsschlüssel" : "Der Server antwortet nicht wie erwartet", status == 401 ? "Check the access token" : "The server did not respond as expected") + " (HTTP \(status))"
+        }
+        let detail = (error as? URLError).map { "URLError \($0.code.rawValue): \($0.localizedDescription)" } ?? error.localizedDescription
+        return words("Verbindung fehlgeschlagen", "Connection failed") + " (\(detail))"
+    }
 
     init() {
         #if DEBUG
@@ -157,7 +169,7 @@ final class AppModel: ObservableObject {
         try SecureSettings.save(value)
         stop()
         connection = value; draft = ""; attachments = []; running = []; overview = []; error = nil
-        restore(); start()
+        connectionIssue = nil; restore(); start()
     }
     func start() {
         guard stream == nil, connection.configured else { return }
@@ -173,14 +185,14 @@ final class AppModel: ObservableObject {
                     if let cursor = self.state.cursor, !cursor.isEmpty { request.setValue(cursor, forHTTPHeaderField: "Last-Event-ID") }
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     try client.validate(response)
-                    self.connected = true; delay = 1
+                    self.connected = true; self.connectionIssue = nil; delay = 1
                     var parser = SSEParser()
                     for try await byte in bytes {
                         try Task.checkCancellation()
                         guard self.epoch == generation else { return }
                         if let message = parser.feed(byte) {
                             if let id = message.id, !id.isEmpty, id == self.state.cursor { continue }
-                            if let event = try? JSONDecoder().decode(WireEvent.self, from: Data(message.data.utf8)) {
+                            do { let event = try JSONDecoder().decode(WireEvent.self, from: Data(message.data.utf8))
                                 let reply = self.state.reduce(event)
                                 self.state.cursor = message.id
                                 if self.speaker, let reply, !reply.isEmpty { self.voice.speak(reply, fallback: self.language) }
@@ -191,9 +203,7 @@ final class AppModel: ObservableObject {
                     }
                 } catch {
                     if Task.isCancelled || self.epoch != generation { return }
-                    if case ClientError.response(401) = error {
-                        self.error = self.words("Bitte prüfe den Zugangsschlüssel in den Einstellungen.", "Please check the access token in Settings.")
-                    }
+                    self.connectionIssue = self.connectionReason(error)
                 }
                 self.connected = false
                 do { try await Task.sleep(for: .seconds(delay)) } catch { return }
