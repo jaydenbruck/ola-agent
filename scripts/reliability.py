@@ -191,13 +191,15 @@ def reports(data):
               "WhatsApp, Lieferando and Uber are the scoped apps. Sign-in walls and blocked pages do not prove completed errands.",
               "This is one run of Ola, a hackathon project by Jayden Bruck. It does not prove phone acceptance or production reliability."]
     escape = lambda value: str(value).replace("|", "\\|").replace("\n", " ").replace("\r", " ")
+    # Keep full query strings in the evidence; they obscure the observed outcome in print.
+    readable = lambda value: re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1 [query in evidence log]", str(value))
     md = ["# Ola reliability", "", "Ola is a hackathon project by Jayden Bruck.", "", overview, "", metadata, "", "## Method", "", method, ""]
     sections = []
     if data.get("journeys"):
         md += ["## Real-site outcomes", "", "| Site | Observed outcome | Evidence |", "|---|---|---|"]
         rows = []
         for journey in data["journeys"]:
-            values = (journey["site"], journey["outcome"], journey["log"])
+            values = (journey["site"], readable(journey["outcome"]), journey["log"])
             md.append("| " + " | ".join(escape(v) for v in values) + " |")
             rows.append("<tr>" + "".join("<td>" + html.escape(v) + "</td>" for v in values) + "</tr>")
         md.append("")
@@ -208,7 +210,7 @@ def reports(data):
         table = []
         for case in rows:
             how = case["suite"] + ": " + case["class"].split(".")[-1]
-            result = case["state"].upper() + (": " + case["detail"] if case["detail"] else "")
+            result = case["state"].upper() + (": " + readable(case["detail"]) if case["detail"] else "")
             md.append("| " + " | ".join(escape(v) for v in (proves(case), how, result)) + " |")
             table.append("<tr>" + "".join("<td>" + html.escape(v) + "</td>" for v in (proves(case), how, result)) + "</tr>")
         md.append("")
