@@ -128,19 +128,18 @@ async def test_uber_price_from_home_to_school(fresh_browser):
 
 async def test_lieferando_margherita_to_the_cart(fresh_browser):
     j = Journey("lieferando")
-    res = await j.do(action="goto", url="https://www.lieferando.de/")
-    if "A dialog is open" in res.text:
-        res = await j.do(action="dismiss_dialog")
-    header_login = j.find(r"^anmelden$|mein account", region="header")
-    footer_partner = j.find(r"restaurant anmelden|partner", region="footer")
-    j.lines += [f"start page: customer sign-in in header: {header_login} ({j.label(header_login) if header_login else '-'}); partner link in footer: {footer_partner} (never clicked)", ""]
-    # the restaurant list for the place, as the site facts say (the start page's location panel is slow headless)
+    # a fresh context clears Lieferando's Cloudflare check in ~2s; go straight to the place's
+    # restaurant list (the start page's location panel is slow headless), as the site facts say
     res = await j.do(action="goto", url="https://www.lieferando.de/lieferservice/essen/dreieich-63303")
     for _ in range(2):
         if "A dialog is open" in res.text:
             res = await j.do(action="dismiss_dialog")
+    if "bot check" in res.text.lower() or "Sicherheitsüberprüfung" in res.text:
+        res = await j.do(action="wait_for", text="Restaurant", seconds=15)
     if "A dialog is open" in res.text:
         j.blocked(f"a dialog stayed open on the restaurant list: {res.text.splitlines()[2][:120]}")
+    if _wall(res):
+        j.blocked(f"{_wall(res)}; url {res.url}")
     restaurant = None
     for _ in range(4):
         restaurant = next((e["ref"] for e in j.refs() if e.get("tag") == "a" and "speisekarte" in str(e.get("href") or "") and re.search(r"pizz", str(e.get("label") or ""), re.I) and "Gesponsert" not in str(e.get("label") or "")), None)
@@ -169,7 +168,6 @@ async def test_lieferando_margherita_to_the_cart(fresh_browser):
     if add:
         res = await j.do(action="click", ref=add)
     res = await j.do(action="read")
-    cart_words = re.search(r"warenkorb|dein korb|your cart|zur kasse|checkout|bestellung", res.text, re.I)
     cart = j.find(r"warenkorb|zur kasse|checkout", tag="button") or j.find(r"warenkorb|zur kasse", tag="a")
     if cart:
         res = await j.do(action="click", ref=cart)
@@ -178,7 +176,7 @@ async def test_lieferando_margherita_to_the_cart(fresh_browser):
     line = next((ln for ln in page_text.splitlines() if re.search(r"margherita", ln, re.I) and PRICE.search(ln)), None)
     confirmed = bool(re.search(r"warenkorb|dein korb|your cart|zur kasse|checkout|bestellung", page_text, re.I)) and line is not None
     if not confirmed:
-        j.blocked(f"the cart does not show the Margherita with a price ({_wall(res) or 'not confirmed on the page'}); restaurant '{restaurant_label}', dish tapped '{dish_label}', cart words: {bool(cart_words)}; url {res.url}")
+        j.blocked(f"the cart does not show the Margherita with a price ({_wall(res) or 'not confirmed on the page'}); restaurant '{restaurant_label}', dish tapped '{dish_label}'; url {res.url}")
     j.passed(f"'{dish_label}' from '{restaurant_label}' is in the cart: the page shows '{line.strip()[:120]}'; stopped before payment on {res.url}. Nothing ordered.")
 
 

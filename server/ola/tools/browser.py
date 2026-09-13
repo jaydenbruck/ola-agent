@@ -821,6 +821,20 @@ async def _handle(s: _Session, ref: str) -> Any:
         return None
 
 
+CHALLENGE_JS = "() => /just a moment|nur einen moment|sicherheitsüberprüfung|checking your browser|verify you are human|attention required/i.test(document.title + ' ' + ((document.body && document.body.innerText) || '').slice(0, 500))"
+
+
+async def _pass_challenge(s: _Session, budget: float = 12.0) -> None:
+    """A bot-check interstitial usually clears by itself within seconds: give it that long, bounded."""
+    try:
+        if not await s.page.evaluate(CHALLENGE_JS):
+            return
+        await s.page.wait_for_function("!(" + CHALLENGE_JS + ")()", timeout=int(budget * 1000))
+        await _settle(s.page, 5.0)
+    except Exception:  # noqa: BLE001
+        pass  # still on the check: the snapshot says so
+
+
 async def _do_goto(s: _Session, url: str) -> tuple[bool, str]:
     if not url:
         return False, "goto needs a url"
@@ -847,20 +861,6 @@ async def _do_goto(s: _Session, url: str) -> tuple[bool, str]:
     return True, ""
 
 
-CHALLENGE_JS = "() => /just a moment|nur einen moment|sicherheitsüberprüfung|checking your browser|verify you are human|attention required/i.test(document.title + ' ' + ((document.body && document.body.innerText) || '').slice(0, 500))"
-
-
-async def _pass_challenge(s: _Session, budget: float = 12.0) -> None:
-    """A bot-check interstitial usually clears by itself within seconds: give it that long, bounded."""
-    try:
-        if not await s.page.evaluate(CHALLENGE_JS):
-            return
-        await s.page.wait_for_function("!(" + CHALLENGE_JS + ")()", timeout=int(budget * 1000))
-        await _settle(s.page, 5.0)
-    except Exception:  # noqa: BLE001
-        pass  # still on the check: the snapshot says so
-
-
 async def _do_click(s: _Session, ref: str) -> tuple[bool, str]:
     if not ref:
         return False, "click needs a ref like e12"
@@ -880,6 +880,7 @@ async def _do_click(s: _Session, ref: str) -> tuple[bool, str]:
         except Exception:  # noqa: BLE001
             return False, f"could not tap {ref} \"{_label_of(s, ref)}\" ({type(e).__name__}: something may cover it, a dialog?); the refs below are fresh"
     await _settle(s.page, 5.0)
+    await _pass_challenge(s)
     return True, ""
 
 
