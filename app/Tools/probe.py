@@ -34,6 +34,8 @@ async def run(args):
         health = await client.get("/health")
         health.raise_for_status()
         assert (await client.get("/jobs", headers={"Authorization": "Bearer invalid-probe"})).status_code == 401
+        access = await client.get("/jobs")
+        access.raise_for_status()
 
         async def collect():
             async with client.stream("GET", "/events/" + thread) as response:
@@ -51,7 +53,17 @@ async def run(args):
 
         listener = asyncio.create_task(collect())
         try:
-            await asyncio.wait_for(ready.wait(), 20)
+            ready_task = asyncio.create_task(ready.wait())
+            try:
+                finished, _ = await asyncio.wait([ready_task, listener], timeout=20, return_when=asyncio.FIRST_COMPLETED)
+                if listener in finished:
+                    await listener
+                    raise AssertionError("The event stream ended before the chat was sent")
+                if ready_task not in finished:
+                    raise TimeoutError("SSE response headers did not arrive within 20 seconds")
+            finally:
+                ready_task.cancel()
+                await asyncio.gather(ready_task, return_exceptions=True)
             sent = await client.post("/chat", json={"thread_id": thread, "text": "Antworte auf Deutsch: Schreibe einen kurzen Satz mit dem Wort **Hallo** in Fettdruck und danach genau zwei Stichpunkte über Regen. Nutze keine Werkzeuge."})
             assert sent.status_code == 202, "Chat did not accept the message"
             turn = sent.json()["turn_id"]
