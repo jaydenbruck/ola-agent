@@ -71,16 +71,27 @@ python -m pip install -e ./server
 The planned server address is `http://localhost:8787`. See
 [server setup](server/README.md) and the commented [.env.example](.env.example).
 
-On a Mac, open `app/Ola.xcodeproj` in Xcode, choose the Ola target and your signing
-team, then build for iOS 17 or later. Set the server URL to an address reachable
-from the phone and set its token to the same `OLA_TOKEN`. The exact settings
-location and build verification are pending the app lane.
+The fresh iOS app is available on `n3-app` at `f0354dc`; it has not merged to
+`main` yet. On that branch, open `app/Ola.xcodeproj` in Xcode, choose the Ola
+scheme and your signing team, then build for iOS 17 or later. In Settings, enter
+a server URL reachable from the phone and the same `OLA_TOKEN`. The default URL
+is `https://api.tryola.ai/agent/`; the app stores the URL and token in Keychain.
+
+The root `codemagic.yaml` defines core tests, a simulator build, and an unsigned
+device archive. The native build is blocked on GitHub passkey authorization
+for Codemagic access; the founder has been asked. No native build or phone
+acceptance is claimed.
 
 ## How we tested reliability
 
 No reliability results have landed on `main` yet. The final README will quote
 counts from `RELIABILITY.md`, link `RELIABILITY.pdf`, and distinguish local fixture
 tests, real-model runs, and live-site journeys. No pass rate is claimed here.
+
+For the separate app commit `f0354dc`, N-3 reports 10 Linux Swift tests passed
+and one live test skipped, with 1,250 Swift lines including tests. These are
+portable core-test results, not native build evidence. Run them on a Swift 5.9+
+host with `swift test --package-path app` after checking out the app branch.
 
 The planned rerun command, from the repository root with the server environment
 activated, is `python scripts/reliability.py`. Its final options and required
