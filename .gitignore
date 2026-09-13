@@ -26,3 +26,5 @@ xcuserdata/
 # Local builds and installed dependencies
 build/
 node_modules/
+server/memory/facts.json
+server/attachments/
