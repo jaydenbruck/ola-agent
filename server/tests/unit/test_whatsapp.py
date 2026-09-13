@@ -54,7 +54,8 @@ async def bridge(monkeypatch):
                                    step=args["action"], needs_you={"reason": args["reason"], "url": page.url} if args["action"] == "needs_you" else None)
 
         page_lock = asyncio.Lock()
-        adapter = SimpleNamespace(page_for_job=page_for_job, run=run, page=page, calls=calls, job_lock=lambda _: page_lock)
+        adapter = SimpleNamespace(page_for_job=page_for_job, run=run, page=page, calls=calls, job_lock=lambda _: page_lock,
+                                  frame_url=lambda job: f"/jobs/{job}/frame.jpg")
         monkeypatch.setattr(whatsapp, "_bridge", lambda: adapter)
         monkeypatch.setattr(whatsapp, "_lock", asyncio.Lock())
         monkeypatch.setattr(whatsapp, "WAIT_MS", 300)
@@ -99,6 +100,14 @@ async def test_whatsapp_qr_requests_takeover(bridge):
     result = await whatsapp.send_message("Alex", "Hello")
     assert result.needs_you and "QR-Code" in result.needs_you["reason"]
     assert bridge.calls[-1]["action"] == "needs_you"
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_hidden_chat_list_does_not_mask_qr(bridge):
+    await bridge.page.goto(whatsapp.HOME)
+    await bridge.page.set_content('<div id=pane-side hidden></div><canvas aria-label="Scan this QR code to link a device!"></canvas>')
+    result = await whatsapp.read_chat()
+    assert result.needs_you and result.ok
 
 
 @pytest.mark.asyncio
@@ -178,5 +187,21 @@ async def test_whatsapp_emits_observed_steps(bridge):
     async def emit(result):
         assert result.image
         steps.append(result.step)
-    await whatsapp.send_message("Alex", "Hello", emit=emit)
-    assert len(steps) >= 5 and "gesendet" in steps[-1]
+    result = await whatsapp.send_message("Alex", "Hello", emit=emit)
+    assert len(steps) == 4 and "Chatfeld" in steps[-1]
+    assert "gesendet" in result.step  # The agent publishes the final action once.
+
+
+@pytest.mark.asyncio
+async def test_whatsapp_registry_handler_emits_frames(bridge):
+    from ola.events import EventBus
+    from ola.tools import Context, Registry
+    registry, bus = Registry(), EventBus()
+    registry.register_module(whatsapp)
+    job = SimpleNamespace(last_step="")
+    ctx = Context(thread_id="thread", job_id="job", lang="en", agent=SimpleNamespace(bus=bus, jobs={"job": job}))
+    result = await registry.call("send_message", {"contact": "Alex", "text": "Hello"}, ctx)
+    assert result.ok and "was sent" in result.step
+    events = bus.history("thread")
+    assert len(events) == 4 and all(event["frame_url"] == "/jobs/job/frame.jpg" for event in events)
+    assert job.last_step == events[-1]["text"]

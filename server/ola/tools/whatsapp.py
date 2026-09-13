@@ -44,7 +44,7 @@ async def _open(browser, job_id, lang, emit):
     # This wall is a request to link the member's account, never an account creation flow.
     try:
         async with browser.job_lock(job_id):
-            await page.locator('#pane-side, canvas[aria-label*="Scan"]').first.wait_for(state="visible", timeout=WAIT_MS)
+            await page.locator('#pane-side:visible, canvas[aria-label*="Scan"]:visible').first.wait_for(state="visible", timeout=WAIT_MS)
             linked = await page.locator("#pane-side").is_visible()
     except Exception:
         result = await _observed(browser, job_id, lang, _words(lang, "WhatsApp ist noch nicht bereit.", "WhatsApp is not ready yet."), emit)
@@ -94,7 +94,7 @@ async def _execute(contact, text, job_id, lang, emit):
                         content = {"contact": contact, "messages": await page.evaluate(MESSAGES_JS), "scope": "currently loaded messages"}
                     else:
                         content = {"chats": await page.locator("#pane-side").inner_text(), "scope": "currently visible chat list"}
-                result = await _observed(browser, job_id, lang, _words(lang, "Ich habe WhatsApp gelesen.", "I've read WhatsApp."), emit)
+                result = await _observed(browser, job_id, lang, _words(lang, "Ich habe WhatsApp gelesen.", "I've read WhatsApp."))
                 result.text = json.dumps(content, ensure_ascii=False)
                 return result
             composer = page.locator('#main footer [contenteditable="true"][role="textbox"]').first
@@ -121,7 +121,7 @@ async def _execute(contact, text, job_id, lang, emit):
                 confirmed = next((m for m in messages if m["direction"] == "outgoing" and m["id"] and
                                   m["id"] not in seen and m["text"] == text and m["receipt"]), None)
                 if confirmed:
-                    result = await _observed(browser, job_id, lang, _words(lang, f"Die Nachricht an {contact} wurde gesendet.", f"The message to {contact} was sent."), emit)
+                    result = await _observed(browser, job_id, lang, _words(lang, f"Die Nachricht an {contact} wurde gesendet.", f"The message to {contact} was sent."))
                     result.text = json.dumps({"status": "sent", "contact": contact, "text": text,
                                               "message_id": confirmed["id"], "receipt": confirmed["receipt"]}, ensure_ascii=False)
                     return result
@@ -130,7 +130,7 @@ async def _execute(contact, text, job_id, lang, emit):
             raise
         except Exception:
             pass  # Never expose page internals or retry a send after an uncertain click.
-        result = await _observed(browser, job_id, lang, _words(lang, "Ich konnte den Vorgang nicht bestätigen.", "I could not confirm the action."), emit)
+        result = await _observed(browser, job_id, lang, _words(lang, "Ich konnte den Vorgang nicht bestätigen.", "I could not confirm the action."))
         result.ok = False
         result.text = _words(lang, "Die Nachricht könnte gesendet sein. Lies den Chat, bevor du erneut sendest.",
                              "The message may have been sent. Read the chat before sending again.") if attempted else _words(
