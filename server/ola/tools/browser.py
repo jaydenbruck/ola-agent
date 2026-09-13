@@ -22,13 +22,21 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import urlsplit
 
-VIEWPORT = {"width": 390, "height": 844}
+try:
+    from fastapi import Depends, HTTPException, Request, Response
+except ImportError:  # pragma: no cover  the tool works without FastAPI; only mount() needs it
+    Depends = HTTPException = Request = Response = None  # type: ignore[assignment]
+
+VIEWPORT = {"width": 390, "height": 844}  # CSS pixels: the phone's takeover view and its tap coordinates
+DEVICE_SCALE = 3  # frames are 1170x2532 device pixels, sharp enough for a QR code on the phone
+FRAME_QUALITY = 90  # the JPEG the phone shows
+MODEL_QUALITY = 45  # the small JPEG the model sees (390x844, detail low)
 MOBILE_UA = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/131.0.0.0 Mobile Safari/537.36"
+    "Chrome/131.0.6778.33 Mobile Safari/537.36"
 )
 PROFILE_DIR = Path(os.environ.get("OLA_PROFILE_DIR") or Path(__file__).resolve().parents[2] / ".profile")
 ACTION_BUDGET_S = 30.0  # the most any single action may take
@@ -38,7 +46,6 @@ MAX_ELEMENTS = 60  # the element list the model sees is capped here
 FOOTER_LINES = 6
 TEXT_EXCERPT = 700  # characters of page text in a snapshot; `read` gives more
 READ_LIMIT = 8000
-JPEG_QUALITY = 40
 
 ACTIONS = ("goto", "click", "fill", "pick", "press", "scroll", "read", "wait_for", "dismiss_dialog", "upload", "needs_you")
 
@@ -111,6 +118,17 @@ SITE_FACTS: dict[str, dict[str, str]] = {
             "https://www.kleinanzeigen.de/s-<ort>/<suchbegriff>/k0 directly. A listing lives at kleinanzeigen.de/s-anzeige/..."
         ),
     },
+    "web.whatsapp.com": {
+        "sign_in": "https://web.whatsapp.com/",
+        "facts": (
+            "WhatsApp Web. A page showing a QR code ('Mit Telefon verknüpfen' / 'Link with phone') is the sign-in: use "
+            "needs_you so the member scans it with their phone; never try to type there. Once linked: the chat list is on the "
+            "left with the search box 'Suchen oder neuen Chat beginnen' at the top; type the contact's name there and click the "
+            "matching chat row. The message composer is the text box at the bottom of the open chat ('Nachricht eingeben'); "
+            "type the message, then press Enter or click the send button. A sent message appears at the bottom of the chat with "
+            "ticks. Never send to a contact that did not match the name exactly."
+        ),
+    },
     "linkedin.com": {
         "sign_in": "https://www.linkedin.com/login",
         "facts": (
@@ -120,7 +138,15 @@ SITE_FACTS: dict[str, dict[str, str]] = {
     },
 }
 
-_JOIN_URL = re.compile(r"/(signup|sign-up|join|register|registrieren|cold-join)(/|\?|$)", re.I)
+# Sites that only work as a desktop page (WhatsApp Web sends a phone to the app store). Their
+# pages get a desktop identity and a wider viewport; frames and taps then use that page's size.
+DESKTOP_SITES = {"web.whatsapp.com"}
+DESKTOP_VIEWPORT = {"width": 780, "height": 1688}  # the same 390:844 shape at half scale: frames stay 1170x2532, a tap maps by x2
+# What a site shows once it is really there (its splash screen is not a page): waited for after goto, bounded.
+READY_HINTS = {"web.whatsapp.com": "canvas, #pane-side, [aria-label*='Chatliste' i], [aria-label*='chat list' i], [data-testid*='chat-list']"}
+DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.33 Safari/537.36"
+
+_JOIN_URL = re.compile(r"/(signup|sign-up|join|register|registrieren|cold-join)(/|\?|\.|$)", re.I)
 _REGIONS = ("dialog", "header", "main", "footer")
 
 
@@ -388,9 +414,13 @@ class _Session:
         self.lang = lang
         self.lock = asyncio.Lock()
         self.next_ref = 0
-        self.frame: Optional[bytes] = None
+        self.frame: Optional[bytes] = None  # device pixels, for the phone
+        self.model_image: Optional[bytes] = None  # 390x844, for the model
         self.frame_at = 0.0
         self.snap: dict[str, Any] = {}
+        self.desktop = False
+        self.desktop_forced = False  # set through page_for_job(desktop=...): goto then leaves the mode alone
+        self.viewport = dict(VIEWPORT)
 
 
 _pw: Any = None
@@ -412,9 +442,9 @@ async def _ensure_context() -> Any:
         _pw = await async_playwright().start()
         _context = await _pw.chromium.launch_persistent_context(
             str(PROFILE_DIR),
-            headless=True,
+            headless=os.environ.get("OLA_HEADED", "") not in ("1", "true", "yes"),
             viewport=VIEWPORT,
-            device_scale_factor=1,
+            device_scale_factor=DEVICE_SCALE,
             is_mobile=True,
             has_touch=True,
             user_agent=MOBILE_UA,
@@ -444,6 +474,49 @@ async def _session(job_id: str, lang: str = "de") -> _Session:
     page.on("popup", adopt)
     _sessions[job_id] = s
     return s
+
+
+async def _set_desktop(s: _Session, desktop: bool) -> None:
+    """Give this one page a desktop identity and viewport (or take it back), through CDP."""
+    if s.desktop == desktop:
+        return
+    try:
+        cdp = await s.page.context.new_cdp_session(s.page)
+        vp = DESKTOP_VIEWPORT if desktop else VIEWPORT
+        scale = DEVICE_SCALE * VIEWPORT["width"] / vp["width"]  # the frame keeps its pixel size
+        await cdp.send("Emulation.setUserAgentOverride", {"userAgent": DESKTOP_UA if desktop else MOBILE_UA, "acceptLanguage": "de-DE,de;q=0.9,en;q=0.8", "platform": "Win32" if desktop else "Linux armv8l"})
+        await cdp.send("Emulation.setDeviceMetricsOverride", {"width": vp["width"], "height": vp["height"], "deviceScaleFactor": scale, "mobile": not desktop})
+        await cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": not desktop})
+        s.desktop, s.viewport = desktop, dict(vp)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+async def page_for_job(job_id: str, *, lang: str = "de", desktop: Optional[bool] = None) -> Any:
+    """The job's live Playwright page, for a deterministic wrapper (N-4's WhatsApp Web) that
+    reads or drives the DOM itself. Hold `job_lock(job_id)` while you use it."""
+    s = await _session(job_id, lang)
+    if desktop is not None:
+        await _set_desktop(s, desktop)
+        s.desktop_forced = True
+    return s.page
+
+
+def job_lock(job_id: str) -> asyncio.Lock:
+    s = _sessions.get(job_id)
+    if s is None:
+        raise KeyError(f"no session for job {job_id}; call page_for_job first")
+    return s.lock
+
+
+async def observe(job_id: str, *, lang: str = "de") -> dict[str, Any]:
+    """The structured snapshot of the job's page: url, title, elements [{ref, tag, role, label,
+    region, box [x, y, w, h], inView, picker, value, href, ...}], text, dialog, hasPassword,
+    hasCode, captcha. Also refreshes the frame. Takes the job lock."""
+    s = await _session(job_id, lang)
+    async with s.lock:
+        snap = await _observe(s)
+    return dict(snap, frame_url=frame_url(job_id), viewport=dict(s.viewport))
 
 
 async def close_job(job_id: str) -> None:
@@ -519,10 +592,31 @@ async def _snapshot(s: _Session) -> dict[str, Any]:
     return snap
 
 
+def _downsample(frame: bytes) -> Optional[bytes]:
+    """The model's copy of the frame: 390x844, small. Pillow when present, else None (the
+    caller then takes a second, CSS-pixel screenshot)."""
+    try:
+        import io
+
+        from PIL import Image
+
+        im = Image.open(io.BytesIO(frame))
+        im = im.convert("RGB").resize((VIEWPORT["width"], VIEWPORT["height"]), Image.LANCZOS)
+        out = io.BytesIO()
+        im.save(out, format="JPEG", quality=MODEL_QUALITY, optimize=True)
+        return out.getvalue()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 async def _screenshot(s: _Session) -> Optional[bytes]:
     try:
-        s.frame = await s.page.screenshot(type="jpeg", quality=JPEG_QUALITY, timeout=8000)
+        s.frame = await s.page.screenshot(type="jpeg", quality=FRAME_QUALITY, scale="device", timeout=8000)
         s.frame_at = time.time()
+        small = _downsample(s.frame)
+        if small is None:
+            small = await s.page.screenshot(type="jpeg", quality=MODEL_QUALITY, scale="css", timeout=8000)
+        s.model_image = small
     except Exception:  # noqa: BLE001
         pass
     return s.frame
@@ -714,6 +808,8 @@ async def _do_goto(s: _Session, url: str) -> tuple[bool, str]:
         return False, "goto needs a url"
     if not re.match(r"^[a-z]+://", url, re.I):
         url = "https://" + url
+    if not s.desktop_forced:
+        await _set_desktop(s, (urlsplit(url).hostname or "").lower() in DESKTOP_SITES)
     try:
         await s.page.goto(url, wait_until="domcontentloaded", timeout=int(ACTION_BUDGET_S * 1000))
     except Exception as e:  # noqa: BLE001
@@ -722,6 +818,13 @@ async def _do_goto(s: _Session, url: str) -> tuple[bool, str]:
             return False, f"{_host(url)} did not finish loading within {ACTION_BUDGET_S:.0f} s; this is what it shows now"
         return False, f"could not open {url}: {_clip(msg, 120)}"
     await _settle(s.page)
+    hint = READY_HINTS.get((urlsplit(url).hostname or "").lower().removeprefix("www."))
+    if hint:
+        try:
+            await s.page.wait_for_selector(hint, state="visible", timeout=15000)
+            await _settle(s.page, 3.0)
+        except Exception:  # noqa: BLE001
+            pass  # the page as it is now; the model can wait_for
     return True, ""
 
 
@@ -856,7 +959,7 @@ async def _do_scroll(s: _Session, dy: Any) -> tuple[bool, str]:
         d = int(dy) if dy not in (None, "") else 600
     except (TypeError, ValueError):
         d = 600
-    await s.page.mouse.move(VIEWPORT["width"] / 2, VIEWPORT["height"] / 2)
+    await s.page.mouse.move(s.viewport["width"] / 2, s.viewport["height"] / 2)
     await s.page.mouse.wheel(0, d)
     await _settle(s.page, 2.0)
     return True, ""
@@ -941,7 +1044,7 @@ async def run(job_id: str, args: dict[str, Any], *, lang: str = "de", attachment
             return await asyncio.wait_for(_run(s, action, args, attachment_path), timeout=ACTION_BUDGET_S + 15)
         except asyncio.TimeoutError:
             snap = await _observe(s)
-            return BrowserResult(format_page(snap, note=f"{action} took longer than {ACTION_BUDGET_S:.0f} s; this is what the page shows now"), s.frame, _step(s.lang, action, False), ok=False, url=str(snap.get("url") or ""))
+            return BrowserResult(format_page(snap, note=f"{action} took longer than {ACTION_BUDGET_S:.0f} s; this is what the page shows now"), s.model_image, _step(s.lang, action, False), ok=False, url=str(snap.get("url") or ""))
 
 
 async def _observe(s: _Session) -> dict[str, Any]:
@@ -954,7 +1057,7 @@ async def _run(s: _Session, action: str, args: dict[str, Any], resolver: Optiona
     lang = s.lang
     if action not in ACTIONS:
         snap = await _observe(s)
-        return BrowserResult(format_page(snap, note=f"unknown action '{action}'; use one of {', '.join(ACTIONS)}"), s.frame, _step(lang, action, False), ok=False, url=snap.get("url", ""))
+        return BrowserResult(format_page(snap, note=f"unknown action '{action}'; use one of {', '.join(ACTIONS)}"), s.model_image, _step(lang, action, False), ok=False, url=snap.get("url", ""))
     ok, note, full_text, step_fields = True, "", "", {}
     if action == "goto":
         ok, note = await _do_goto(s, str(args.get("url") or ""))
@@ -995,11 +1098,11 @@ async def _run(s: _Session, action: str, args: dict[str, Any], resolver: Optiona
         snap = await _observe(s)
         url = str(snap.get("url") or s.page.url)
         text = format_page(snap, note="The member is on this page now. You get the page again when they are done; then continue.")
-        return BrowserResult(text, s.frame, _step(lang, "needs_you", True, reason=reason), ok=True, needs_you={"reason": reason or ("Bitte übernimm kurz." if lang.startswith("de") else "Please take over for a moment."), "url": url}, url=url)
+        return BrowserResult(text, s.model_image, _step(lang, "needs_you", True, reason=reason), ok=True, needs_you={"reason": reason or ("Bitte übernimm kurz." if lang.startswith("de") else "Please take over for a moment."), "url": url}, url=url)
     snap = await _observe(s)
     if not ok:
         note = f"ACTION FAILED: {note}"
-    return BrowserResult(format_page(snap, note=note, full_text=full_text), s.frame, _step(lang, action, ok, **step_fields), ok=ok, url=str(snap.get("url") or ""))
+    return BrowserResult(format_page(snap, note=note, full_text=full_text), s.model_image, _step(lang, action, ok, **step_fields), ok=ok, url=str(snap.get("url") or ""))
 
 
 async def after_resume(job_id: str) -> BrowserResult:
@@ -1008,7 +1111,7 @@ async def after_resume(job_id: str) -> BrowserResult:
     async with s.lock:
         await _settle(s.page, 5.0)
         snap = await _observe(s)
-        return BrowserResult(format_page(snap, note="The member has handed the page back to you. This is what it shows now."), s.frame, _step(s.lang, "resume", True), ok=True, url=str(snap.get("url") or ""))
+        return BrowserResult(format_page(snap, note="The member has handed the page back to you. This is what it shows now."), s.model_image, _step(s.lang, "resume", True), ok=True, url=str(snap.get("url") or ""))
 
 
 async def member_input(job_id: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -1017,16 +1120,17 @@ async def member_input(job_id: str, body: dict[str, Any]) -> dict[str, Any]:
     if s is None or s.page.is_closed():
         return {"ok": False, "error": "no page for this job"}
     kind = str(body.get("kind") or "")
+    k = s.viewport["width"] / VIEWPORT["width"]  # the phone taps in 390x844; a desktop page is twice that
     async with s.lock:
         try:
             if kind == "tap":
-                await s.page.mouse.click(float(body.get("x") or 0), float(body.get("y") or 0))
+                await s.page.mouse.click(float(body.get("x") or 0) * k, float(body.get("y") or 0) * k)
             elif kind == "type":
                 await s.page.keyboard.type(str(body.get("text") or ""))
             elif kind == "key":
                 await s.page.keyboard.press(str(body.get("key") or "Enter"))
             elif kind == "scroll":
-                await s.page.mouse.move(VIEWPORT["width"] / 2, VIEWPORT["height"] / 2)
+                await s.page.mouse.move(s.viewport["width"] / 2, s.viewport["height"] / 2)
                 await s.page.mouse.wheel(0, float(body.get("dy") or 400))
             else:
                 return {"ok": False, "error": "kind must be tap, type, key or scroll"}
@@ -1034,7 +1138,7 @@ async def member_input(job_id: str, body: dict[str, Any]) -> dict[str, Any]:
             return {"ok": False, "error": type(e).__name__}
         await _settle(s.page, 2.0)
         await _screenshot(s)
-    return {"ok": True, "url": s.page.url, "frame_url": frame_url(job_id)}
+    return {"ok": True, "url": s.page.url, "frame_url": frame_url(job_id), "viewport": dict(s.viewport)}
 
 
 async def fresh_frame(job_id: str, max_age: float = 0.3) -> Optional[bytes]:
@@ -1052,16 +1156,16 @@ async def fresh_frame(job_id: str, max_age: float = 0.3) -> Optional[bytes]:
 
 def mount(app: Any, auth: Optional[Callable[..., Any]] = None) -> None:
     """The two takeover routes on N-1's FastAPI app: the latest frame, and the member's input."""
-    from fastapi import Depends, HTTPException, Request, Response
-
     deps = [Depends(auth)] if auth is not None else []
 
     @app.get("/jobs/{job_id}/frame.jpg", dependencies=deps)
     async def _frame(job_id: str) -> Response:
+        """The latest frame, re-taken when older than a third of a second: polling at 2 fps during
+        a takeover always shows the page as it is. 1170x2532 device pixels; taps are sent in 390x844."""
         data = await fresh_frame(job_id)
         if data is None:
             raise HTTPException(status_code=404, detail="no frame for this job")
-        return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+        return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-store", "X-Ola-Viewport": f"{VIEWPORT['width']}x{VIEWPORT['height']}"})
 
     @app.post("/jobs/{job_id}/input", dependencies=deps)
     async def _input(job_id: str, request: Request) -> dict[str, Any]:
@@ -1076,7 +1180,8 @@ def mount(app: Any, auth: Optional[Callable[..., Any]] = None) -> None:
 
 
 __all__ = [
-    "TOOL", "ACTIONS", "SITE_FACTS", "BrowserResult", "run", "after_resume", "member_input", "fresh_frame",
+    "TOOL", "ACTIONS", "SITE_FACTS", "DESKTOP_SITES", "BrowserResult", "run", "after_resume", "member_input", "fresh_frame",
+    "observe", "page_for_job", "job_lock",
     "latest_frame", "frame_url", "close_job", "shutdown", "mount", "format_page", "facts_line", "site_of",
     "site_facts_for_prompt",
 ]
