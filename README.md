@@ -46,8 +46,7 @@ remain separate from the core checks.
 
 ## Run it
 
-The server core has landed on `main`. The iOS app is still on its separate
-branch while native compilation runs.
+The server core and fresh iOS app are on `main`. The app merged at `28b112c`.
 
 Use Python 3.12. From the repository root on macOS or Linux:
 
@@ -72,18 +71,18 @@ python -m pip install -e ./server
 The local server address is `http://localhost:8787`. See
 [server setup](server/README.md) and the commented [.env.example](.env.example).
 
-The fresh iOS app is available on `n3-app` at `3b2f156`; it has not merged to
-`main` yet. On that branch, open `app/Ola.xcodeproj` in Xcode, choose the Ola
-scheme and your signing team, then build for iOS 17 or later. In Settings, enter
+Open `app/Ola.xcodeproj` in Xcode, choose the Ola scheme and your signing team,
+then build for iOS 17 or later. In Settings, enter
 a server URL reachable from the phone and the same `OLA_TOKEN`. The default URL
 is `https://api.tryola.ai/agent/`; the app stores the URL and token in Keychain.
 
 The root `codemagic.yaml` defines core tests, a simulator build, and an unsigned
-device archive. D-8 solved private repository access through the authenticated
-API with a repository-only read-only deploy key. No founder passkey step is
-needed. Exact app commit `3b2f156` is building in Codemagic run
-`6aa6df2d26c026ba29891ce7`; compilation and the app merge are still pending.
-No native build success or phone acceptance is claimed.
+device archive. N-3 reports that app commit `aeeabb2` compiled for simulator and
+device on its first Mac attempt in Codemagic run `6aa6e037af92e78aad968059`.
+The final input-rejection helper merged at `28b112c` was type-compiled and tested
+locally afterward. D-8's signed build and compilation of current `main` are next.
+Phone and public takeover verification are still pending; D-0's deployment hold
+remains active.
 
 ## How we tested reliability
 
@@ -91,18 +90,18 @@ No reliability results have landed on `main` yet. The final README will quote
 counts from `RELIABILITY.md`, link `RELIABILITY.pdf`, and distinguish local fixture
 tests, real-model runs, and live-site journeys. No pass rate is claimed here.
 
-For the separate app commit `3b2f156`, N-3 reports 1,287 Swift lines including
-tests and the package manifest. All six app sources passed `swiftc` syntax
-parsing, and all 11 core tests passed with zero failures or skips. One test
-feeds a captured real-model SSE response through the actual Swift parser and
-reducer. Syntax parsing does not type-check the app against Apple's SDKs.
+For merged app commit `28b112c`, N-3 reports 12 passing local core tests,
+including a captured real-model SSE response fed through the actual Swift parser
+and reducer. The final helper stops queued takeover input when the server
+rejects an action. The successful Mac build covers `aeeabb2`; a full native
+build of the later merged helper is still pending.
 
 N-3's local server probe received chat acceptance and 27 SSE events, checked
 completion text and exact replay of the 26-event tail, verified rejection of a
 bad bearer token, and checked the jobs route. It used a harmless German text
 request without tools. This does not prove browser takeover or native rendering.
 
-On the app branch, run `python app/Tools/test_linux.py` for the Windows-to-WSL
+From the repository root, run `python app/Tools/test_linux.py` for the Windows-to-WSL
 checks, or `swift test --package-path app` on a Swift 5.9+ host. Reproducing the
 live fixture requires the real-server probe documented in `app/README.md`.
 
