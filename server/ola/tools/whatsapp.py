@@ -49,7 +49,7 @@ async def _open(browser, job_id, lang, emit):
     except Exception:
         result = await _observed(browser, job_id, lang, _words(lang, "WhatsApp ist noch nicht bereit.", "WhatsApp is not ready yet."), emit)
         result.ok = False
-        result.text = _words(lang, "WhatsApp ist noch nicht bereit. Die aktuelle Seite ist sichtbar.", "WhatsApp is not ready yet. The current page is visible.")
+        result.text = _words(lang, "WhatsApp ist noch nicht bereit. Die aktuelle Seite ist sichtbar.", "WhatsApp is not ready yet. The current page is visible.") + "\n" + result.text
         return page, result
     if not linked:
         reason = _words(lang, "Scanne bitte den QR-Code mit WhatsApp, um dein Konto zu verknüpfen.",

@@ -1,0 +1,1047 @@
+{
+  "commit": "ed144104157e4eeea80a68eedd8487e5f6c7af20",
+  "source_sha256": "fbcefdac146edc68abfff438e9365486cfa11d0640d855f428eee91ceb7ca342",
+  "started": "2026-09-13T20:00:57+02:00",
+  "runs": [
+    {
+      "suite": "unit",
+      "command": "python -m pytest server/tests/unit -q --tb=short --junitxml=build/reliability/unit.xml",
+      "started": "2026-09-13T20:00:57+02:00",
+      "ended": "2026-09-13T20:02:58+02:00",
+      "exit": 0,
+      "cases": [
+        {
+          "suite": "unit",
+          "name": "test_turn_event_order",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.033
+        },
+        {
+          "suite": "unit",
+          "name": "test_two_jobs_run_in_parallel",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.026
+        },
+        {
+          "suite": "unit",
+          "name": "test_needs_you_then_resume",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.05
+        },
+        {
+          "suite": "unit",
+          "name": "test_resume_from_chat_tool",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.032
+        },
+        {
+          "suite": "unit",
+          "name": "test_cancel_job",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.092
+        },
+        {
+          "suite": "unit",
+          "name": "test_cut_arguments_are_answered",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.03
+        },
+        {
+          "suite": "unit",
+          "name": "test_unknown_tool_gets_the_real_list",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.031
+        },
+        {
+          "suite": "unit",
+          "name": "test_language_and_facts_in_prompt",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.006
+        },
+        {
+          "suite": "unit",
+          "name": "test_job_sees_only_job_tools_and_gets_the_member_language",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.024
+        },
+        {
+          "suite": "unit",
+          "name": "test_remember_and_remind",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.007
+        },
+        {
+          "suite": "unit",
+          "name": "test_failed_job_is_spoken_honestly",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.024
+        },
+        {
+          "suite": "unit",
+          "name": "test_job_without_job_tools_fails_honestly",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.031
+        },
+        {
+          "suite": "unit",
+          "name": "test_cancel_while_waiting_clears_needs_you",
+          "class": "tests.unit.test_agent",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.031
+        },
+        {
+          "suite": "unit",
+          "name": "test_goto_returns_the_page_and_a_step_sentence",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.394
+        },
+        {
+          "suite": "unit",
+          "name": "test_goto_failure_says_why_and_does_not_raise",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 4.123
+        },
+        {
+          "suite": "unit",
+          "name": "test_dismiss_dialog_prefers_reject",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.954
+        },
+        {
+          "suite": "unit",
+          "name": "test_dismiss_dialog_closes_a_modal_without_a_reject_control",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.811
+        },
+        {
+          "suite": "unit",
+          "name": "test_click_the_header_anmelden_not_the_footer_partner_link",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 3.411
+        },
+        {
+          "suite": "unit",
+          "name": "test_click_a_stale_ref_fails_with_fresh_refs",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.009
+        },
+        {
+          "suite": "unit",
+          "name": "test_fill_many_fields_at_once",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.782
+        },
+        {
+          "suite": "unit",
+          "name": "test_pick_completes_a_suggestion_picker_first_time",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 5.366
+        },
+        {
+          "suite": "unit",
+          "name": "test_pick_never_takes_the_location_or_map_rows",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 3.367
+        },
+        {
+          "suite": "unit",
+          "name": "test_pick_on_a_plain_field_says_so",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 8.266
+        },
+        {
+          "suite": "unit",
+          "name": "test_pick_with_no_matching_row_lists_what_it_offers",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 8.456
+        },
+        {
+          "suite": "unit",
+          "name": "test_press_and_scroll_and_read",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.947
+        },
+        {
+          "suite": "unit",
+          "name": "test_wait_for_waits_for_readiness_not_a_fixed_time",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 8.104
+        },
+        {
+          "suite": "unit",
+          "name": "test_wait_for_url",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 3.077
+        },
+        {
+          "suite": "unit",
+          "name": "test_upload_puts_the_attachment_into_the_file_input",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.13
+        },
+        {
+          "suite": "unit",
+          "name": "test_needs_you_returns_the_reason_and_url",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.928
+        },
+        {
+          "suite": "unit",
+          "name": "test_unknown_action_is_reported_not_raised",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.892
+        },
+        {
+          "suite": "unit",
+          "name": "test_close_job_closes_the_page",
+          "class": "tests.unit.test_browser_actions",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.665
+        },
+        {
+          "suite": "unit",
+          "name": "test_refs_are_stable_across_rereads",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.114
+        },
+        {
+          "suite": "unit",
+          "name": "test_refs_never_repeat_within_a_job_across_pages",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.84
+        },
+        {
+          "suite": "unit",
+          "name": "test_regions_put_header_before_footer_and_dialog_first",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.879
+        },
+        {
+          "suite": "unit",
+          "name": "test_footer_is_capped_with_a_count",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.676
+        },
+        {
+          "suite": "unit",
+          "name": "test_picker_fields_are_flagged_and_plain_fields_are_not",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.634
+        },
+        {
+          "suite": "unit",
+          "name": "test_password_page_says_use_needs_you_and_never_shows_a_value",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.736
+        },
+        {
+          "suite": "unit",
+          "name": "test_sign_up_page_carries_the_warning",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.601
+        },
+        {
+          "suite": "unit",
+          "name": "test_snapshot_is_short_and_read_is_long",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.095
+        },
+        {
+          "suite": "unit",
+          "name": "test_element_cap_holds_on_a_busy_page",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.285
+        },
+        {
+          "suite": "unit",
+          "name": "test_site_facts_reach_the_page_head_for_known_sites_only",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_tool_schema_names_every_action",
+          "class": "tests.unit.test_browser_snapshot",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_frame_route_serves_the_latest_jpeg_and_checks_the_bearer",
+          "class": "tests.unit.test_browser_takeover",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.697
+        },
+        {
+          "suite": "unit",
+          "name": "test_member_signs_in_through_input_then_after_resume_shows_the_page",
+          "class": "tests.unit.test_browser_takeover",
+          "state": "passed",
+          "detail": "",
+          "seconds": 4.334
+        },
+        {
+          "suite": "unit",
+          "name": "test_sign_in_survives_a_browser_restart_on_the_same_profile",
+          "class": "tests.unit.test_browser_takeover",
+          "state": "passed",
+          "detail": "",
+          "seconds": 4.616
+        },
+        {
+          "suite": "unit",
+          "name": "test_frames_are_sharp_and_the_model_image_small",
+          "class": "tests.unit.test_browser_takeover",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.543
+        },
+        {
+          "suite": "unit",
+          "name": "test_a_desktop_page_keeps_the_frame_shape_and_maps_taps",
+          "class": "tests.unit.test_browser_takeover",
+          "state": "passed",
+          "detail": "",
+          "seconds": 4.062
+        },
+        {
+          "suite": "unit",
+          "name": "test_seq_per_thread_and_history",
+          "class": "tests.unit.test_events",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_sse_framing",
+          "class": "tests.unit.test_events",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_stream_replays_then_goes_live_with_keepalive",
+          "class": "tests.unit.test_events",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.133
+        },
+        {
+          "suite": "unit",
+          "name": "test_bearer_on_every_route",
+          "class": "tests.unit.test_main",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.036
+        },
+        {
+          "suite": "unit",
+          "name": "test_chat_events_jobs_resume",
+          "class": "tests.unit.test_main",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.466
+        },
+        {
+          "suite": "unit",
+          "name": "test_cancel_and_attachments",
+          "class": "tests.unit.test_main",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.837
+        },
+        {
+          "suite": "unit",
+          "name": "test_streams_text_and_accumulates_tool_call_fragments",
+          "class": "tests.unit.test_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.008
+        },
+        {
+          "suite": "unit",
+          "name": "test_cut_arguments_are_marked",
+          "class": "tests.unit.test_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.006
+        },
+        {
+          "suite": "unit",
+          "name": "test_retries_on_429_and_5xx_then_succeeds",
+          "class": "tests.unit.test_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.534
+        },
+        {
+          "suite": "unit",
+          "name": "test_gives_up_after_retries_and_reports_4xx_plainly",
+          "class": "tests.unit.test_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.531
+        },
+        {
+          "suite": "unit",
+          "name": "test_image_parts_and_tool_messages",
+          "class": "tests.unit.test_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.003
+        },
+        {
+          "suite": "unit",
+          "name": "test_env_defaults",
+          "class": "tests.unit.test_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.801
+        },
+        {
+          "suite": "unit",
+          "name": "test_junit_outcomes",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.007
+        },
+        {
+          "suite": "unit",
+          "name": "test_expected_site_failure_is_blocked",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.004
+        },
+        {
+          "suite": "unit",
+          "name": "test_swift_skip_cannot_count_as_pass",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_incomplete_swift_results_are_error",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_secrets_redacted",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_environment_precedence",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.005
+        },
+        {
+          "suite": "unit",
+          "name": "test_collection_failure_is_error[2]",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.007
+        },
+        {
+          "suite": "unit",
+          "name": "test_collection_failure_is_error[3]",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.004
+        },
+        {
+          "suite": "unit",
+          "name": "test_collection_failure_is_error[4]",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.004
+        },
+        {
+          "suite": "unit",
+          "name": "test_collection_failure_is_error[5]",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.004
+        },
+        {
+          "suite": "unit",
+          "name": "test_timeout_is_error",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.004
+        },
+        {
+          "suite": "unit",
+          "name": "test_nonzero_exit_cannot_be_hidden_by_passing_xml",
+          "class": "tests.unit.test_reliability",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.005
+        },
+        {
+          "suite": "unit",
+          "name": "test_register_module_openai_and_bare_shapes",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.006
+        },
+        {
+          "suite": "unit",
+          "name": "test_load_optional_skips_missing_modules",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.003
+        },
+        {
+          "suite": "unit",
+          "name": "test_memory_roundtrip",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.007
+        },
+        {
+          "suite": "unit",
+          "name": "test_example_facts_file_is_valid",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.009
+        },
+        {
+          "suite": "unit",
+          "name": "test_prompts_carry_voice_rules_and_facts",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_language_detection",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_parse_when",
+          "class": "tests.unit.test_tools_memory_prompt",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_send_confirms_new_receipt",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 1.568
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_read_loaded_messages",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.485
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_read_chat_list",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.342
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_qr_requests_takeover",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.248
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_hidden_chat_list_does_not_mask_qr",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.236
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_resume_uses_same_page",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.667
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_duplicate_contact_does_not_send",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.438
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_missing_contact_does_not_send",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.763
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_unconfirmed_send_is_not_retried[queued]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.881
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_unconfirmed_send_is_not_retried[no-new-message]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.867
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_changed_recipient_does_not_send",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.489
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_missing_send_control_does_not_send",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.53
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_unready_page_is_not_linked",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.527
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_rejects_missing_message[-Hello]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.002
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_rejects_missing_message[None-Hello]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_rejects_missing_message[Alex-]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_rejects_missing_message[Alex-None]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_rejects_missing_message[Alex-12]",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_emits_observed_steps",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.707
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_registry_handler_emits_frames",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.607
+        },
+        {
+          "suite": "unit",
+          "name": "test_whatsapp_concurrent_sends_keep_their_recipient",
+          "class": "tests.unit.test_whatsapp",
+          "state": "passed",
+          "detail": "",
+          "seconds": 2.336
+        }
+      ]
+    },
+    {
+      "suite": "e2e",
+      "command": "python -m pytest server/tests/e2e -q --tb=short --junitxml=build/reliability/e2e.xml",
+      "started": "2026-09-13T20:02:58+02:00",
+      "ended": "2026-09-13T20:03:49+02:00",
+      "exit": 1,
+      "cases": [
+        {
+          "suite": "e2e",
+          "name": "test_model_signs_in_via_needs_you_takeover_and_resume",
+          "class": "tests.e2e.test_browser_takeover",
+          "state": "passed",
+          "detail": "",
+          "seconds": 12.596
+        },
+        {
+          "suite": "e2e",
+          "name": "test_two_jobs_in_parallel_spoken_in_german",
+          "class": "tests.e2e.test_turn_real_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 26.508
+        },
+        {
+          "suite": "e2e",
+          "name": "test_reminder_is_spoken_later",
+          "class": "tests.e2e.test_turn_real_model",
+          "state": "failed",
+          "detail": "AssertionError: ['Hol die Pizza aus dem Ofen!', 'Ich sag dir gleich Bescheid.\n  Alles klar.']\nassert False\n +  where False = any(<generator object test_reminder_is_spoken_later.<locals>.<genexpr> at 0x0000021473F9B920>)",
+          "seconds": 6.679
+        },
+        {
+          "suite": "e2e",
+          "name": "test_english_request_gets_english_answer",
+          "class": "tests.e2e.test_turn_real_model",
+          "state": "passed",
+          "detail": "",
+          "seconds": 3.591
+        }
+      ]
+    },
+    {
+      "suite": "live",
+      "command": "python -m pytest server/tests/live -q --tb=short --junitxml=build/reliability/live.xml",
+      "started": "2026-09-13T20:03:49+02:00",
+      "ended": "2026-09-13T20:06:13+02:00",
+      "exit": 1,
+      "cases": [
+        {
+          "suite": "live",
+          "name": "test_real_routes_parallel_takeover_resume",
+          "class": "tests.live.test_agent_routes",
+          "state": "passed",
+          "detail": "",
+          "seconds": 20.287
+        },
+        {
+          "suite": "live",
+          "name": "test_uber_price_from_home_to_school",
+          "class": "tests.live.test_browser_sites",
+          "state": "blocked",
+          "detail": "uber: no fare in euros on the page after both fields were set (a sign-in wall (with the member's saved session on the server profile the page continues here)); url https://m.uber.com/go/product-selection?drop%5B0%5D=%7B%22addressLine1%22%3A%22Ricarda-Huch-Schule%22%2C%22addressLine2%22%3A%22Breslauer%20Str.%2015-25%2C%20Dreieich-Sprendlingen%22%2C%22id%22%3A%22ChIJlwmT-ypzvUcR7i-o3dREMIs%22%2C%22source%22%3A%22SEARCH%22%2C%22latitude%22%3A50.0211051%2C%22longitude%22%3A8.6891365%2C%22provider%22%3A%22google_places%22%7D&marketing_vistor_id=198d1740-0631-48a4-b5d2-e4fba8313504&pickup=%7B%22addressLine1%22%3A%22Dieburger%20Str.%2048%20a%22%2C%22addressLine2%22%3A%22Dreieich-Offenthal%22%2C%22id%22%3A%22ChIJ-ytj5HZtvUcRgE3Fr3yaYyo%22%2C%22source%22%3A%22SEARCH%22%2C%22latitude%22%3A49.980365%2C%22longitude%22%3A8.7498534%2C%22provider%22%3A%22google_places%22%7D&uclick_id=dd9f3b28-2d1c-4619-b75f-974cdaa0919d&vehicle=1493",
+          "seconds": 55.043
+        },
+        {
+          "suite": "live",
+          "name": "test_lieferando_margherita_to_the_cart",
+          "class": "tests.live.test_browser_sites",
+          "state": "blocked",
+          "detail": "lieferando: no pizza restaurant link among the refs (a bot check (Cloudflare interstitial) blocks the page); url https://www.lieferando.de/lieferservice/essen/dreieich-63303",
+          "seconds": 18.352
+        },
+        {
+          "suite": "live",
+          "name": "test_linkedin_lands_on_the_sign_in_page_never_the_join_page",
+          "class": "tests.live.test_browser_sites",
+          "state": "passed",
+          "detail": "",
+          "seconds": 4.08
+        },
+        {
+          "suite": "live",
+          "name": "test_kleinanzeigen_search_and_open_a_listing",
+          "class": "tests.live.test_browser_sites",
+          "state": "passed",
+          "detail": "",
+          "seconds": 11.015
+        },
+        {
+          "suite": "live",
+          "name": "test_live_whatsapp_qr_takeover",
+          "class": "tests.live.test_whatsapp_live",
+          "state": "failed",
+          "detail": "AssertionError: The fresh WhatsApp session did not reach the QR linking wall\nassert None\n +  where None = BrowserResult(text='WhatsApp ist noch nicht bereit. Die aktuelle Seite ist sichtbar.', image=b'\\xff\\xd8\\xff\\xe0\\x00\\x1...89\\x10\\x7f\\xff\\xd9', step='WhatsApp ist noch nicht bereit.', ok=False, needs_you=None, url='https://web.whatsapp.com/').needs_you",
+          "seconds": 33.973
+        },
+        {
+          "suite": "live",
+          "name": "test_live_whatsapp_send_and_read",
+          "class": "tests.live.test_whatsapp_live",
+          "state": "skipped",
+          "detail": "Missing OLA_WHATSAPP_TEST_CONTACT, an authorized test recipient",
+          "seconds": 0.004
+        }
+      ]
+    },
+    {
+      "suite": "swift",
+      "command": "WSL CTO-OpenClaw-Proof-20260908: /tmp/n3-swift/swift-6.0.3-RELEASE-ubuntu24.04/usr/bin/swift test --package-path <isolated copy of app> --jobs 1",
+      "started": "2026-09-13T20:06:13+02:00",
+      "ended": "2026-09-13T20:06:39+02:00",
+      "exit": 0,
+      "cases": [
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testBlankEventsCommentsAndIncompleteDisconnect",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.002
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testByteBoundariesAndMultiline",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.002
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testCRAndPersistentIDAndEmptyData",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.101
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testCapturedRealServerEvents",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testCompletionRepairsMissingDeltas",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.1
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testConcurrentRepliesCompleteOnce",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.0
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testEveryCardTransitionAndNoDuplicate",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.0
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testFailureAndReorderedCard",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.0
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testFittedFrameRejectsLetterbox",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.0
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testPublicDoorPrefixOnEveryRoute",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testRejectedInputCannotCountAsAnAcceptedAction",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        },
+        {
+          "suite": "swift",
+          "class": "CoreTests",
+          "name": "testSnapshotAndPersistence",
+          "state": "passed",
+          "detail": "",
+          "seconds": 0.001
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "python": "3.13.1",
+    "platform": "Windows",
+    "model": "x-ai/grok-4.5"
+  },
+  "ended": "2026-09-13T20:06:39+02:00",
+  "journeys": [
+    {
+      "site": "kleinanzeigen",
+      "log": "server/tests/live/logs/kleinanzeigen-20260913-200528.md",
+      "outcome": "PASSED: listing 'Herren Fahrrad Rabeneick 28 Zoll' opened at https://www.kleinanzeigen.de/s-anzeige/herren-fahrrad-rabeneick-28-zoll/3507086395-217-3829, price 89 \u20ac."
+    },
+    {
+      "site": "lieferando",
+      "log": "server/tests/live/logs/lieferando-20260913-200505.md",
+      "outcome": "BLOCKED: no pizza restaurant link among the refs (a bot check (Cloudflare interstitial) blocks the page); url https://www.lieferando.de/lieferservice/essen/dreieich-63303"
+    },
+    {
+      "site": "linkedin",
+      "log": "server/tests/live/logs/linkedin-20260913-200524.md",
+      "outcome": "PASSED: sign-in page https://www.linkedin.com/login/ with a password field, no join page; needs_you handed it over with reason 'Bitte melde dich bei LinkedIn an.'. No credential typed."
+    },
+    {
+      "site": "uber",
+      "log": "server/tests/live/logs/uber-20260913-200410.md",
+      "outcome": "BLOCKED: no fare in euros on the page after both fields were set (a sign-in wall (with the member's saved session on the server profile the page continues here)); url https://m.uber.com/go/product-selection?drop%5B0%5D=%7B%22addressLine1%22%3A%22Ricarda-Huch-Schule%22%2C%22addressLine2%22%3A%22Breslauer%20Str.%2015-25%2C%20Dreieich-Sprendlingen%22%2C%22id%22%3A%22ChIJlwmT-ypzvUcR7i-o3dREMIs%22%2C%22source%22%3A%22SEARCH%22%2C%22latitude%22%3A50.0211051%2C%22longitude%22%3A8.6891365%2C%22provider%22%3A%22google_places%22%7D&marketing_vistor_id=198d1740-0631-48a4-b5d2-e4fba8313504&pickup=%7B%22addressLine1%22%3A%22Dieburger%20Str.%2048%20a%22%2C%22addressLine2%22%3A%22Dreieich-Offenthal%22%2C%22id%22%3A%22ChIJ-ytj5HZtvUcRgE3Fr3yaYyo%22%2C%22source%22%3A%22SEARCH%22%2C%22latitude%22%3A49.980365%2C%22longitude%22%3A8.7498534%2C%22provider%22%3A%22google_places%22%7D&uclick_id=dd9f3b28-2d1c-4619-b75f-974cdaa0919d&vehicle=1493"
+    }
+  ]
+}
