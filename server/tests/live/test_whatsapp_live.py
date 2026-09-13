@@ -2,6 +2,7 @@
 import json
 import os
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -24,12 +25,13 @@ async def test_live_whatsapp_qr_takeover(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_live_whatsapp_send_and_read():
+async def test_live_whatsapp_send_and_read(monkeypatch):
     """Send once to the authorized test contact and find that exact outgoing message ID."""
     contact = os.getenv("OLA_WHATSAPP_TEST_CONTACT")
     if not contact:
         pytest.skip("Missing OLA_WHATSAPP_TEST_CONTACT, an authorized test recipient")
     browser = whatsapp._bridge()
+    monkeypatch.setattr(browser, "PROFILE_DIR", Path(os.getenv("OLA_PROFILE_DIR") or Path(browser.__file__).resolve().parents[2] / ".profile"))
     try:
         message = "Ola reliability check " + uuid.uuid4().hex
         result = await whatsapp.send_message(contact, message, job_id="live-whatsapp-send", lang="en")

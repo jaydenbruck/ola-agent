@@ -47,3 +47,15 @@ def test_timeout_is_error(tmp_path, monkeypatch):
 
     monkeypatch.setattr(report.subprocess, "run", timeout)
     assert report.run_suite("live", {}, 1)["exit"] == 124
+
+
+def test_nonzero_exit_cannot_be_hidden_by_passing_xml(tmp_path, monkeypatch):
+    monkeypatch.setattr(report, "OUT", tmp_path)
+
+    def failed_run(*args, **kwargs):
+        (tmp_path / "unit.xml").write_text('<testsuites><testsuite><testcase name="passed"/></testsuite></testsuites>')
+        return subprocess.CompletedProcess([], 1, "late plugin failure", "")
+
+    monkeypatch.setattr(report.subprocess, "run", failed_run)
+    result = report.run_suite("unit", {}, 1)
+    assert [case["state"] for case in result["cases"]] == ["passed", "error"]
