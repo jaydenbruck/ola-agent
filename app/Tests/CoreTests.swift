@@ -2,6 +2,18 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testShutdownCommentRequestsReconnectWithoutChangingCursor() {
+        let bytes = Data("id: 42\ndata: saved\n\n: connected\n\n: keep\n\n: bye\r\n\r\n".utf8)
+        for split in 0...bytes.count {
+            var parser = SSEParser()
+            let messages = parser.feed(bytes.prefix(split)) + parser.feed(bytes.suffix(bytes.count - split))
+            XCTAssertEqual(messages, [SSEMessage(id: "42", data: "saved")])
+            XCTAssertTrue(parser.reconnectRequested)
+        }
+        var parser = SSEParser()
+        XCTAssertEqual(parser.feed(Data(": connected\n\n: keep\n\n".utf8)), [])
+        XCTAssertFalse(parser.reconnectRequested)
+    }
     func testRejectedInputCannotCountAsAnAcceptedAction() {
         XCTAssertTrue(WireResponse.isRejected(Data(#"{"ok":false,"error":"TargetClosedError"}"#.utf8)))
         XCTAssertFalse(WireResponse.isRejected(Data(#"{"ok":true}"#.utf8)))

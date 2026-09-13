@@ -187,6 +187,7 @@ final class AppModel: ObservableObject {
                                 self.scheduleSave()
                             }
                         }
+                        if parser.reconnectRequested { break }
                     }
                 } catch {
                     if Task.isCancelled || self.epoch != generation { return }

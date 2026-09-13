@@ -8,6 +8,7 @@ struct SSEMessage: Equatable {
 
 /// Bytes, rather than decoded chunks, keep split UTF-8 characters intact.
 struct SSEParser {
+    private(set) var reconnectRequested = false
     private var line: [UInt8] = []
     private var data: [String] = []
     private var id: String?
@@ -39,7 +40,10 @@ struct SSEParser {
             guard !data.isEmpty else { return nil }
             return SSEMessage(id: id, event: event, data: data.joined(separator: "\n"))
         }
-        if value.hasPrefix(":") { return nil }
+        if value.hasPrefix(":") {
+            if value.dropFirst().trimmingCharacters(in: .whitespaces) == "bye" { reconnectRequested = true }
+            return nil
+        }
         let parts = value.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
         var field = parts.count > 1 ? String(parts[1]) : ""
         if field.hasPrefix(" ") { field.removeFirst() }
