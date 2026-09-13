@@ -17,7 +17,7 @@ PAGE = """<!doctype html><html lang=en><title>Local WhatsApp test</title><body>
 <div class=message-out data-id=old-out><span class=selectable-text>Earlier message</span><i data-icon=msg-check></i></div>
 </section><footer><div role=textbox contenteditable=true aria-label=Message></div><button aria-label=Send>Send</button></footer></div>
 <script>(()=>{
-window.sends=0; window.mode='sent';
+window.sends=0; window.mode='sent'; window.sentTo=[];
 const search=document.querySelector('#side [role=textbox]');
 search.addEventListener('input',()=>{for(const e of document.querySelectorAll('#pane-side [title]'))e.hidden=!e.title.toLowerCase().includes(search.innerText.toLowerCase())});
 document.querySelector('#pane-side').addEventListener('click',e=>{
@@ -26,6 +26,7 @@ document.querySelector('#pane-side').addEventListener('click',e=>{
 });
 document.querySelector('#main footer button').onclick=()=>{
  window.sends++;const text=document.querySelector('#main footer [role=textbox]').innerText;
+ window.sentTo.push(document.querySelector('#main header span').title);
  if(window.mode==='no-new-message')return;
  const e=document.createElement('div');e.className='message-out';e.dataset.id='new-'+window.sends;
  const t=document.createElement('span');t.className='selectable-text';t.innerText=text;e.append(t);
@@ -212,3 +213,10 @@ async def test_whatsapp_registry_handler_emits_frames(bridge):
     events = bus.history("thread")
     assert len(events) == 4 and all(event["frame_url"] == "/jobs/job/frame.jpg" for event in events)
     assert job.last_step == events[-1]["text"]
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_whatsapp_concurrent_sends_keep_their_recipient(bridge):
+    results = await asyncio.gather(whatsapp.send_message("Alex", "First"), whatsapp.send_message("Sam", "Second"))
+    assert all(result.ok for result in results)
+    assert await bridge.page.evaluate("window.sentTo") == ["Alex", "Sam"]
