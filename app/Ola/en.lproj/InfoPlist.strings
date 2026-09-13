@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Ola uses the microphone to write the message you dictate.";
+"NSSpeechRecognitionUsageDescription" = "Ola transcribes your words on this device.";
+"NSLocalNetworkUsageDescription" = "Ola connects to the server you choose, including servers on your local network.";

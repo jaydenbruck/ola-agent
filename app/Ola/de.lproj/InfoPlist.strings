@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Ola nutzt das Mikrofon, um deine diktierte Nachricht aufzuschreiben.";
+"NSSpeechRecognitionUsageDescription" = "Ola schreibt deine Worte auf diesem Gerät mit.";
+"NSLocalNetworkUsageDescription" = "Ola verbindet sich mit dem von dir gewählten Server, auch in deinem lokalen Netzwerk.";

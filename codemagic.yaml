@@ -1,0 +1,27 @@
+workflows:
+  ola-ios:
+    name: Ola app and core tests
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: latest
+    scripts:
+      - name: Parser, reducer, and coordinate tests
+        script: |
+          set -euo pipefail
+          cd app
+          swift test 2>&1 | tee ../core-tests.log
+      - name: Build iPhone simulator app
+        script: |
+          set -euo pipefail
+          xcodebuild -project app/Ola.xcodeproj -scheme Ola -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ios-build.log
+      - name: Build device archive without signing
+        script: |
+          set -euo pipefail
+          xcodebuild -project app/Ola.xcodeproj -scheme Ola -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/Ola.xcarchive CODE_SIGNING_ALLOWED=NO archive 2>&1 | tee ios-archive.log
+    artifacts:
+      - core-tests.log
+      - ios-build.log
+      - ios-archive.log
+      - build/ios/Build/Products/Debug-iphonesimulator/Ola.app
+      - build/Ola.xcarchive
