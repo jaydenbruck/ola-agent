@@ -59,14 +59,18 @@ async def _open(browser, job_id, lang, emit):
         try:
             async with browser.job_lock(job_id):
                 took_phone = await browser.whatsapp_start_phone_link(page)
+                if took_phone:
+                    # Set the country to Germany and focus the number field FIRST, so the member
+                    # never has to hit the tiny country flag (founder feedback). Country only.
+                    await browser.whatsapp_set_germany(page)
         except Exception:
             took_phone = False
         if took_phone:
             reason = _words(lang,
-                            "Gib hier deine eigene Telefonnummer ein und tippe auf Weiter. WhatsApp zeigt dann einen "
-                            "Code, den ich dir anzeige - gib ihn in WhatsApp unter 'Verknüpfte Geräte' ein.",
-                            "Enter your own phone number here and tap Next. WhatsApp will then show a code that I'll "
-                            "display for you - enter it in WhatsApp under 'Linked Devices'.")
+                            "Tippe auf die Tastatur, gib deine Telefonnummer ein und drücke die Eingabetaste. WhatsApp "
+                            "zeigt dann hier einen 8-stelligen Code, den du in WhatsApp unter 'Verknüpfte Geräte' eingibst.",
+                            "Tap the keyboard, type your phone number, then press return. WhatsApp will then show an "
+                            "8-character code here that you enter in WhatsApp under 'Linked Devices'.")
         else:
             reason = _words(lang, "Scanne bitte den QR-Code mit WhatsApp, um dein Konto zu verknüpfen.",
                             "Scan the QR code with WhatsApp to link your account.")

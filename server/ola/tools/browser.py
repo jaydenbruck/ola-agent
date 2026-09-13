@@ -819,6 +819,72 @@ async def whatsapp_start_phone_link(page: Any, timeout_ms: int = 8000) -> bool:
         return bool(await _whatsapp_link_code(page))  # the code screen may already be showing
 
 
+_COUNTRY_DE_RE = re.compile(r"deutschland|germany", re.I)
+
+
+async def whatsapp_set_germany(page: Any, timeout_ms: int = 6000) -> bool:
+    """Set the country selector on WhatsApp's link-with-phone screen to Germany (+49) and focus the
+    phone-number input, so the member types only their number and never has to hit the tiny country
+    flag (a hard target at 2 fps). COUNTRY ONLY: this never types or fills the phone number. Returns
+    True when Germany is chosen. The caller holds job_lock(job_id)."""
+
+    async def focus_number() -> None:
+        try:
+            await page.locator(_PHONE_INPUT_SEL).first.focus(timeout=1500)
+        except Exception:  # noqa: BLE001
+            pass
+
+    # 1. a native <select> of countries: set it directly
+    selects = page.locator("select")
+    try:
+        n = await selects.count()
+    except Exception:  # noqa: BLE001
+        n = 0
+    for i in range(n):
+        one = selects.nth(i)
+        try:
+            opt = one.locator("option").filter(has_text=_COUNTRY_DE_RE)
+            if await opt.count():
+                val = await opt.first.get_attribute("value")
+                if val is not None:
+                    await one.select_option(value=val)
+                else:
+                    await one.select_option(label=await opt.first.inner_text())
+                await focus_number()
+                return True
+        except Exception:  # noqa: BLE001
+            continue
+    # 2. a clickable country selector that opens a (searchable) list
+    opener = page.get_by_role("button", name=re.compile(r"land|country|vorwahl|deutschland|germany|wähle|\+\d", re.I))
+    try:
+        await opener.first.click(timeout=2500)
+        opened = True
+    except Exception:  # noqa: BLE001
+        opened = False
+    if opened:
+        # a SEARCH box in the opened panel — never the tel input
+        search = page.locator('input[type="search"], input[aria-label*="uch" i], input[aria-label*="earch" i], '
+                               'input[placeholder*="uch" i], input[placeholder*="earch" i], '
+                               '[role=dialog] input:not([type=tel]):not([inputmode=tel])')
+        try:
+            if await search.count():
+                await search.first.fill("Deutschland", timeout=1500)
+        except Exception:  # noqa: BLE001
+            pass
+    row = page.get_by_role("option", name=_COUNTRY_DE_RE)
+    try:
+        if not await row.count():
+            row = page.get_by_role("button", name=_COUNTRY_DE_RE)
+        if not await row.count():
+            row = page.locator("li, [role=option], [role=menuitem], [role=button]").filter(has_text=_COUNTRY_DE_RE)
+        await row.first.click(timeout=3000)
+    except Exception:  # noqa: BLE001
+        await focus_number()
+        return False
+    await focus_number()
+    return True
+
+
 def _code_hint(lang: str) -> str:
     """One line telling the member where to type the code. English by default; German when the
     member writes German."""
@@ -1421,7 +1487,7 @@ def mount(app: Any, auth: Optional[Callable[..., Any]] = None) -> None:
 
 __all__ = [
     "TOOL", "ACTIONS", "SITE_FACTS", "DESKTOP_SITES", "BrowserResult", "run", "after_resume", "member_input", "fresh_frame",
-    "observe", "page_for_job", "job_lock", "whatsapp_start_phone_link",
+    "observe", "page_for_job", "job_lock", "whatsapp_start_phone_link", "whatsapp_set_germany",
     "latest_frame", "frame_url", "close_job", "shutdown", "mount", "format_page", "facts_line", "site_of",
     "site_facts_for_prompt",
 ]

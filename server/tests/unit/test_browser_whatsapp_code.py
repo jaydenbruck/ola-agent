@@ -98,3 +98,38 @@ async def test_whatsapp_phone_link_returns_false_when_the_control_is_missing(sit
     await browser.run("wa-phone-2", {"action": "goto", "url": sites.url("/signin.html")})
     s = browser._sessions["wa-phone-2"]
     assert await browser.whatsapp_start_phone_link(s.page, timeout_ms=1500) is False
+
+
+async def test_whatsapp_prefills_germany_and_focuses_the_number_without_typing_it(sites, fresh_browser):
+    """Founder feedback: he couldn't hit the tiny country flag. The tool sets the country to Germany
+    and focuses the number field BEFORE handing over, and never types the number itself."""
+    await browser.run("wa-de-1", {"action": "goto", "url": sites.url("/wa_country.html")})
+    s = browser._sessions["wa-de-1"]
+    ok = await browser.whatsapp_set_germany(s.page)
+    assert ok is True
+    shown = await s.page.locator("#country-btn").inner_text()
+    assert "Deutschland" in shown and "+49" in shown, f"country not set to Germany: {shown!r}"
+    active = await s.page.evaluate("() => document.activeElement && document.activeElement.id")
+    assert active == "num", f"the number field must be focused, active was {active!r}"
+    assert await s.page.locator("#num").input_value() == "", "the tool must never type the member's phone number"
+
+
+async def test_desktop_tap_scaling_maps_390x844_onto_780x1688_for_x_and_y(sites, fresh_browser):
+    """The x2 mapping Uber sign-in also relies on: a tap in the phone's 390x844 space lands on the
+    desktop page's 780x1688 CSS pixels (verified numerically and end-to-end)."""
+    assert browser.DESKTOP_VIEWPORT["width"] / browser.VIEWPORT["width"] == 2.0
+    assert browser.DESKTOP_VIEWPORT["height"] / browser.VIEWPORT["height"] == 2.0  # same k for y
+    # aspect ratios match, so scaledToFit is exact (no letterboxing skew)
+    assert abs(browser.VIEWPORT["width"] / browser.VIEWPORT["height"] - browser.DESKTOP_VIEWPORT["width"] / browser.DESKTOP_VIEWPORT["height"]) < 1e-9
+    # end to end: a desktop page, a tap sent in 390x844, lands on the right control
+    await browser.page_for_job("tap-de", desktop=True)
+    await browser.run("tap-de", {"action": "goto", "url": sites.url("/wa_country.html")})
+    s = browser._sessions["tap-de"]
+    box = await s.page.locator("#weiter").bounding_box()  # CSS px in the 780-wide page
+    phone_x = (box["x"] + box["width"] / 2) / 2  # what the phone would send in 390 space
+    phone_y = (box["y"] + box["height"] / 2) / 2
+    clicked = {"v": False}
+    await s.page.expose_function("_olaClicked", lambda: clicked.__setitem__("v", True))
+    await s.page.evaluate("() => document.getElementById('weiter').addEventListener('click', () => window._olaClicked())")
+    out = await browser.member_input("tap-de", {"kind": "tap", "x": phone_x, "y": phone_y})
+    assert out["ok"] and clicked["v"], "the x2-mapped tap must land on the button"

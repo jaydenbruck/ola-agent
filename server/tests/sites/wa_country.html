@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Enter phone number</title><link rel="stylesheet" href="style.css">
+<style>#country-list{list-style:none;margin:0;padding:0;border:1px solid #ccc;border-radius:8px}#country-list li{padding:12px;border-bottom:1px solid #eee;cursor:pointer}button{width:auto;display:inline-block;padding:10px 16px}</style>
+</head>
+<body>
+<header><strong>WhatsApp</strong></header>
+<main>
+<h1>Enter phone number</h1>
+<p>Select your country and enter your phone number.</p>
+<button id="country-btn" type="button" aria-label="Wähle dein Land">🏳️ Wähle dein Land</button>
+<div id="country-panel" hidden>
+  <input id="country-search" type="text" placeholder="Land suchen" aria-label="Land suchen">
+  <ul id="country-list">
+    <li data-code="+49">🇩🇪 Deutschland (+49)</li>
+    <li data-code="+43">🇦🇹 Österreich (+43)</li>
+    <li data-code="+41">🇨🇭 Schweiz (+41)</li>
+  </ul>
+</div>
+<label for="num">Phone number</label>
+<input id="num" type="tel" aria-label="Type your phone number" placeholder="phone number">
+<button id="weiter" type="button">Next</button>
+<script>
+const btn=document.getElementById('country-btn'), panel=document.getElementById('country-panel');
+btn.onclick=()=>{ panel.hidden=!panel.hidden; };
+for(const li of document.querySelectorAll('#country-list li')){
+  li.onclick=()=>{ btn.textContent=li.textContent.replace(/\s*\(.*\)/,'')+' '+li.dataset.code; btn.setAttribute('data-selected', li.dataset.code); panel.hidden=true; };
+}
+</script>
+</main>
+</body></html>
