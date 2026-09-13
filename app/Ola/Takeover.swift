@@ -23,26 +23,34 @@ final class TakeoverSession: ObservableObject {
     @Published var error: String?
     @Published var pending = 0
     @Published var resumed = false
+    @Published var frameVersion = 0
+    private var lastFrame: Data?
+    private var fetching = false
     private var queue: Task<Void, Never>?
     private var stopped = false
+    private var inputGeneration = UUID()
 
     func poll(api: API, jobID: String) async {
         stopped = false
         while !Task.isCancelled && !stopped {
             let start = ContinuousClock.now
-            do {
-                let data = try await api.data("/jobs/\(jobID)/frame.jpg?t=\(Date().timeIntervalSince1970)")
-                try Task.checkCancellation()
-                guard !stopped else { return }
-                guard let image = UIImage(data: data) else { throw ClientError.image }
-                self.image = image; frameUnavailable = false
-            } catch {
-                if Task.isCancelled || stopped { return }
-                frameUnavailable = true
-            }
+            await refresh(api: api, path: "/jobs/\(jobID)/frame.jpg?t=\(Date().timeIntervalSince1970)")
             let remaining = Duration.milliseconds(500) - start.duration(to: .now)
             if remaining > .zero { do { try await Task.sleep(for: remaining) } catch { return } }
         }
+    }
+    func refresh(api: API, path: String) async {
+        guard !fetching, !stopped else { return }
+        fetching = true
+        defer { fetching = false }
+        do {
+            let data = try await api.data(path)
+            try Task.checkCancellation()
+            guard !stopped else { return }
+            guard let image = UIImage(data: data) else { throw ClientError.image }
+            if data != lastFrame { self.image = image; lastFrame = data; frameVersion += 1 }
+            frameUnavailable = false
+        } catch { if !Task.isCancelled && !stopped { frameUnavailable = true } }
     }
     func input(api: API, jobID: String, body: [String: Any], language: String) {
         enqueue(api: api, path: "/jobs/\(jobID)/input", body: body, language: language, resume: false)
@@ -52,16 +60,18 @@ final class TakeoverSession: ObservableObject {
     }
     private func enqueue(api: API, path: String, body: [String: Any], language: String, resume: Bool) {
         let previous = queue
+        let generation = inputGeneration
         pending += 1
         queue = Task { [weak self] in
             await previous?.value
             guard let self else { return }
             defer { self.pending -= 1 }
-            guard !Task.isCancelled, !self.stopped else { return }
+            guard !Task.isCancelled, !self.stopped, generation == self.inputGeneration else { return }
             do {
                 _ = try await api.post(path, body)
                 if resume { self.resumed = true }
             } catch {
+                self.inputGeneration = UUID()
                 self.error = copy(language, "Die Eingabe ist nicht angekommen. Versuch es erneut.", "The input didn't arrive. Please try again.")
             }
         }
@@ -73,17 +83,21 @@ struct TakeoverView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var session = TakeoverSession()
     @State private var keyboard = false
     @State private var typed = ""
     @FocusState private var typing: Bool
     let job: JobCard
+    private var currentJob: JobCard {
+        model.state.jobs.first(where: { $0.id == job.id }) ?? model.overview.first(where: { $0.id == job.id }) ?? job
+    }
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Button { dismiss() } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
                     .accessibilityLabel(model.words("Zurück zum Chat", "Back to chat"))
-                Text(job.title).font(.headline).lineLimit(1).frame(maxWidth: .infinity)
+                Text(currentJob.title).font(.headline).lineLimit(1).frame(maxWidth: .infinity)
                 Button { keyboard.toggle(); typing = keyboard } label: { Image(systemName: "keyboard").frame(width: 44, height: 44) }
                     .accessibilityLabel(model.words("Tastatur", "Keyboard"))
             }.padding(.horizontal, 8)
@@ -112,11 +126,13 @@ struct TakeoverView: View {
                     if let image = session.image {
                         Image(uiImage: image).resizable().interpolation(.high).scaledToFit()
                             .frame(width: geometry.size.width, height: geometry.size.height)
+                            .id(session.frameVersion).transition(.opacity)
                     } else { Text(model.words("Bildschirm wird geladen …", "Loading screen …")).foregroundStyle(Palette.secondary) }
                     if session.frameUnavailable {
                         VStack { Text(model.words("Bildschirm gerade nicht erreichbar", "Screen currently unavailable")).font(.caption).padding(8).background(.regularMaterial); Spacer() }
                     }
                 }
+                .animation(reduceMotion ? nil : Palette.frameFade, value: session.frameVersion)
                 .contentShape(Rectangle())
                 .gesture(SpatialTapGesture().onEnded { value in
                     guard session.image != nil, !session.frameUnavailable,
@@ -133,12 +149,17 @@ struct TakeoverView: View {
                 .accessibilityAction(named: Text(model.words("Nach unten scrollen", "Scroll down"))) { input(["kind": "scroll", "dy": 500]) }
                 .accessibilityAction(named: Text(model.words("Nach oben scrollen", "Scroll up"))) { input(["kind": "scroll", "dy": -500]) }
             }
+            Text(currentJob.state.label(model.language)).font(.caption).foregroundStyle(Palette.secondary)
+                .frame(maxWidth: .infinity).frame(height: 28)
         }
         .background(Palette.ground).tint(Palette.ink)
         .overlay(alignment: .bottom) { if let error = session.error { Text(error).font(.footnote).padding().background(.regularMaterial) } }
         // The remote image rectangle stays fixed when the keyboard opens.
         .ignoresSafeArea(.keyboard)
         .task(id: phase) { if phase == .active { await session.poll(api: model.api, jobID: job.id) } }
+        .task(id: currentJob.frameURL) {
+            if phase == .active, let path = currentJob.frameURL { await session.refresh(api: model.api, path: path) }
+        }
         .onChange(of: session.resumed) { _, resumed in if resumed { Task { await model.refreshJobs() }; dismiss() } }
         .onDisappear { typed = ""; session.close() }
     }

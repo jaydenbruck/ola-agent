@@ -98,6 +98,7 @@ final class AppModel: ObservableObject {
     @Published var uploading = false
     @Published var error: String?
     @Published var running: [JobCard] = []
+    @Published var overview: [JobCard] = []
     @Published var language = UserDefaults.standard.string(forKey: "language") ?? "de" {
         didSet { UserDefaults.standard.set(language, forKey: "language") }
     }
@@ -143,7 +144,7 @@ final class AppModel: ObservableObject {
         guard value.configured else { throw ClientError.configuration }
         try SecureSettings.save(value)
         stop()
-        connection = value; draft = ""; attachments = []; running = []; error = nil
+        connection = value; draft = ""; attachments = []; running = []; overview = []; error = nil
         restore(); start()
     }
     func start() {
@@ -201,12 +202,13 @@ final class AppModel: ObservableObject {
         let generation = epoch
         let before = state.jobs
         do {
-            async let globalData = api.data("/jobs")
+            async let globalData = api.data("/jobs?all=1")
             async let threadData = api.data("/jobs?thread_id=\(threadID)&all=1")
             let rows = try JSONDecoder().decode([JobSnapshot].self, from: await globalData)
             let history = try JSONDecoder().decode([JobSnapshot].self, from: await threadData)
             guard epoch == generation else { return }
-            running = rows.map(\.card).filter { $0.state.active }
+            overview = rows.map(\.card)
+            running = overview.filter { $0.state.active }
             for row in history {
                 // An event received during this request is newer than its snapshot.
                 if state.jobs.first(where: { $0.id == row.job_id }) == before.first(where: { $0.id == row.job_id }) {

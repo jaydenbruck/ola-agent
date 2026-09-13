@@ -18,6 +18,9 @@ with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
     if fixture.exists():
         archive.add(fixture, arcname="events.sse")
 subprocess.run(prefix + ["tar", "xzf", "-", "-C", target], input=buffer.getvalue(), check=True)
+sources = [target + "/Ola/" + path.name for path in sorted((root / "Ola").glob("*.swift"))]
+subprocess.run(prefix + [swift + "c", "-frontend", "-parse"] + sources, check=True)
+print("swiftc syntax parse: all app sources passed; Apple SDK type-checking requires Xcode.")
 command = prefix + (["env", "OLA_EVENT_FIXTURE=" + target + "/events.sse"] if fixture.exists() else [])
 result = subprocess.run(command + [swift, "test", "--package-path", target, "--scratch-path", "/tmp/n3-swift/build"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 print(result.stdout.decode(errors="replace"))

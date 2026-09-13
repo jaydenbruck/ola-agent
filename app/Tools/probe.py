@@ -33,7 +33,7 @@ async def run(args):
     async with httpx.AsyncClient(base_url=args.url, headers=headers, timeout=180) as client:
         health = await client.get("/health")
         health.raise_for_status()
-        assert (await client.get("/health", headers={"Authorization": "Bearer invalid-probe"})).status_code == 401
+        assert (await client.get("/jobs", headers={"Authorization": "Bearer invalid-probe"})).status_code == 401
 
         async def collect():
             async with client.stream("GET", "/events/" + thread) as response:

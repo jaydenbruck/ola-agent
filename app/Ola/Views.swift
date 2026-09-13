@@ -7,6 +7,7 @@ enum Palette {
     static let ink = Color(red: 20 / 255, green: 21 / 255, blue: 25 / 255)
     static let secondary = Color(red: 90 / 255, green: 94 / 255, blue: 102 / 255)
     static let edge = Color.black.opacity(0.08)
+    static let frameFade = Animation.easeInOut(duration: 0.18)
 }
 
 struct OlaMark: View {
