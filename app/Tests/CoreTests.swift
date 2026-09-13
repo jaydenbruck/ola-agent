@@ -2,6 +2,36 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testSpeechStartsOnFirstCompleteSentenceBeforeDone() {
+        let first = "This first sentence is long enough to start speaking immediately."
+        var stream = SpeechSentences(), chunks: [String] = []
+        for char in first { chunks += stream.receive(WireEvent(type: "assistant.delta", turn_id: "a", text: String(char))) }
+        XCTAssertEqual(chunks, [first])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.delta", turn_id: "a", text: " Last fragment")), [])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.done", turn_id: "a"), finalText: first + " Last fragment"), [" Last fragment"])
+    }
+    func testSentenceMinimumNewlinesAndDecimalAmounts() {
+        var stream = SpeechSentences()
+        let text = "Hi! The price for everything together is 12.50 euros.\nThis line is also long enough to be spoken now\nTail"
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.delta", turn_id: "a", text: text)),
+                       ["Hi! The price for everything together is 12.50 euros.", "\nThis line is also long enough to be spoken now\n"])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.done", turn_id: "a")), ["Tail"])
+    }
+    func testSpeechTurnsStaySeparateAndCancellationDropsOldTail() {
+        var stream = SpeechSentences()
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.delta", turn_id: "a", text: "An unfinished reply")), [])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.done", turn_id: "b", text: "Another job finished.")), ["Another job finished."])
+        stream.cancel()
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.delta", turn_id: "a", text: " which should never be spoken.")), [])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.done", turn_id: "a", text: "An unfinished reply which should never be spoken.")), [])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.done", turn_id: "c", text: "New reply.")), ["New reply."])
+    }
+    func testDoneRepairsTheUnspokenTailWithoutRepeatingFirstSentence() {
+        var stream = SpeechSentences()
+        let first = "This complete sentence should only be spoken once."
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.delta", turn_id: "a", text: first + " Incomplete")), [first])
+        XCTAssertEqual(stream.receive(WireEvent(type: "assistant.done", turn_id: "a"), finalText: first + " The full final fragment."), [" The full final fragment."])
+    }
     func testConfirmationFromEventAndSnapshotThenAcknowledgementAndNextStep() throws {
         let json = Data(#"{"type":"job.confirm","job_id":"pizza","title":"Margherita","price":"12,50 €","detail":"Delivery in 25 minutes"}"#.utf8)
         let event = try JSONDecoder().decode(WireEvent.self, from: json)

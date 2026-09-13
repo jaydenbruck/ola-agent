@@ -349,6 +349,7 @@ struct Composer: View {
                 .overlay(RoundedRectangle(cornerRadius: 26).stroke(Palette.edge))
             if let error = dictation.error { Text(error).font(.footnote).foregroundStyle(Palette.secondary) }
             if !model.connected { Text(model.connectionStatus).font(.footnote).foregroundStyle(Palette.secondary) }
+            else if let issue = model.voiceIssue { Text(issue).font(.footnote).foregroundStyle(Palette.secondary) }
         }.padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 8).background(Palette.ground)
             .onChange(of: photo) { _, item in
                 guard let item else { return }

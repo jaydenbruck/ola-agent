@@ -96,6 +96,7 @@ final class AppModel: ObservableObject {
     @Published var attachments: [String] = []
     @Published var connected = false
     @Published var connectionIssue: String?
+    @Published var voiceIssue: String?
     @Published var sending = false
     @Published var uploading = false
     @Published var error: String?
@@ -106,7 +107,7 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(language, forKey: "language") }
     }
     @Published var speaker = UserDefaults.standard.bool(forKey: "speaker") {
-        didSet { UserDefaults.standard.set(speaker, forKey: "speaker"); if !speaker { voice.stop() } }
+        didSet { UserDefaults.standard.set(speaker, forKey: "speaker"); if !speaker { voice.stop(); voiceIssue = nil } }
     }
     let voice = ReplyVoice()
     private var stream: Task<Void, Never>?
@@ -144,6 +145,14 @@ final class AppModel: ObservableObject {
         #if DEBUG
         if let thread = env["OLA_SMOKE_THREAD_ID"], !thread.isEmpty { threadID = thread; state = ThreadState() }
         #endif
+        voice.onUnavailable = { [weak self] error in
+            guard let self else { return }
+            let detail: String
+            if case ClientError.response(let status) = error { detail = "HTTP \(status)" }
+            else if let url = error as? URLError { detail = "URLError \(url.code.rawValue): \(url.localizedDescription)" }
+            else { detail = error.localizedDescription }
+            self.voiceIssue = self.words("Stimme nicht verfügbar: ", "Voice unavailable: ") + detail
+        }
     }
     private var cacheURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -191,7 +200,7 @@ final class AppModel: ObservableObject {
         threadID = UUID().uuidString
         UserDefaults.standard.set(threadID, forKey: "thread-" + connection.storageKey)
         state = ThreadState(); draft = ""; attachments = []; running = []; overview = []
-        error = nil; connectionIssue = nil
+        error = nil; connectionIssue = nil; voiceIssue = nil
         persist()
     }
     func start() {
@@ -216,9 +225,10 @@ final class AppModel: ObservableObject {
                         if let message = parser.feed(byte) {
                             if let id = message.id, !id.isEmpty, id == self.state.cursor { continue }
                             do { let event = try JSONDecoder().decode(WireEvent.self, from: Data(message.data.utf8))
+                                let wasFinished = self.state.messages.first(where: { $0.id == event.turn_id })?.finished == true
                                 let reply = self.state.reduce(event)
                                 self.state.cursor = message.id
-                                if self.speaker, let reply, !reply.isEmpty { self.voice.speak(reply, fallback: self.language, api: client) }
+                                if self.speaker && !wasFinished { self.voice.receive(event, finalText: reply, fallback: self.language, api: client) }
                                 self.scheduleSave()
                             }
                         }
@@ -266,7 +276,7 @@ final class AppModel: ObservableObject {
     }
     func send() async {
         guard canSend else { return }
-        voice.stop()
+        voice.stop(); voiceIssue = nil
         let text = draft, photos = attachments, generation = epoch
         sending = true; draft = ""; attachments = []
         state.addMember(text: text, attachments: photos); persist()

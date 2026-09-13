@@ -18,6 +18,39 @@ struct SSEMessage: Equatable {
     var data: String
 }
 
+struct SpeechSentences {
+    private struct Turn { var text = ""; var consumed = 0 }
+    private var turns: [String: Turn] = [:]
+    private var cancelled: Set<String> = []
+
+    mutating func receive(_ event: WireEvent, finalText: String? = nil) -> [String] {
+        guard let id = event.turn_id, ["assistant.delta", "assistant.done"].contains(event.type) else { return [] }
+        guard !cancelled.contains(id) else { return [] }
+        var turn = turns[id] ?? Turn()
+        if event.type == "assistant.delta" { turn.text += event.text ?? "" }
+        else if let full = finalText ?? event.text { turn.text = full }
+        let remaining = Array(turn.text.dropFirst(turn.consumed))
+        var start = 0, chunks: [String] = []
+        for index in remaining.indices where index - start + 1 >= 40 {
+            let char = remaining[index]
+            guard ".!?\n".contains(char) else { continue }
+            let next = index + 1
+            if char == ".", index > 0, remaining[index - 1].isNumber,
+               next == remaining.count || remaining[next].isNumber { continue }
+            guard char == "\n" || next == remaining.count || remaining[next].isWhitespace else { continue }
+            chunks.append(String(remaining[start...index])); start = next
+        }
+        turn.consumed += start
+        if event.type == "assistant.done" {
+            let tail = String(remaining.dropFirst(start))
+            if !tail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { chunks.append(tail) }
+            turns.removeValue(forKey: id)
+        } else { turns[id] = turn }
+        return chunks
+    }
+    mutating func cancel() { cancelled.formUnion(turns.keys); turns.removeAll() }
+}
+
 /// Bytes, rather than decoded chunks, keep split UTF-8 characters intact.
 struct SSEParser {
     private(set) var reconnectRequested = false

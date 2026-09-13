@@ -7,16 +7,32 @@ import SwiftUI
 final class ReplyVoice {
     private let synthesizer = AVSpeechSynthesizer()
     private var player: AVAudioPlayer?
-    private var waiting: [(String, String, API)] = []
+    private struct Sentence { let text: String; let language: String; let audio: Task<Data, Error> }
+    private var waiting: [Sentence] = []
+    private var fetching: Task<Data, Error>?
+    private var sentences = SpeechSentences()
     private var worker: Task<Void, Never>?
     private var generation = UUID()
+    private var reportedFailure = false
+    var onUnavailable: ((Error) -> Void)?
     var recording = false { didSet { if !recording { drain() } } }
 
-    func speak(_ text: String, fallback: String, api: API) {
+    func receive(_ event: WireEvent, finalText: String?, fallback: String, api: API) {
+        for text in sentences.receive(event, finalText: finalText) { speak(text, fallback: fallback, api: api) }
+    }
+    private func speak(_ text: String, fallback: String, api: API) {
         let plain = SpeechText.plain(text)
         guard !plain.isEmpty else { return }
         let recognizer = NLLanguageRecognizer(); recognizer.processString(plain)
-        waiting.append((text, recognizer.dominantLanguage?.rawValue ?? fallback, api))
+        let language = recognizer.dominantLanguage?.rawValue ?? fallback
+        let audio = Task<Data, Error> {
+            let body = try JSONSerialization.data(withJSONObject: ["text": text, "language": language])
+            let (data, response) = try await URLSession.shared.data(for: api.request("/speak", method: "POST", body: body))
+            try Task.checkCancellation()
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw ClientError.response((response as? HTTPURLResponse)?.statusCode ?? 0) }
+            return data
+        }
+        waiting.append(Sentence(text: text, language: language, audio: audio))
         drain()
     }
     private func activate() throws {
@@ -30,26 +46,26 @@ final class ReplyVoice {
             guard let self else { return }
             defer {
                 if self.generation == epoch {
-                    self.worker = nil; self.player = nil
+                    self.worker = nil; self.player = nil; self.fetching = nil
                     if !self.recording { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
                 }
             }
             while !self.waiting.isEmpty && !self.recording && !Task.isCancelled {
-                let (text, language, api) = self.waiting.removeFirst()
+                let sentence = self.waiting.removeFirst()
+                self.fetching = sentence.audio
                 do {
-                    let body = try JSONSerialization.data(withJSONObject: ["text": text, "language": language])
-                    let (data, response) = try await URLSession.shared.data(for: api.request("/speak", method: "POST", body: body))
+                    let data = try await sentence.audio.value
                     guard !Task.isCancelled, self.generation == epoch else { return }
-                    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw ClientError.response((response as? HTTPURLResponse)?.statusCode ?? 0) }
                     let audio = try AVAudioPlayer(data: data)
                     try self.activate(); self.player = audio
                     guard audio.play() else { throw ClientError.rejected }
                     while audio.isPlaying { try await Task.sleep(for: .milliseconds(100)) }
                 } catch {
                     guard !Task.isCancelled, self.generation == epoch else { return }
+                    if !self.reportedFailure { self.reportedFailure = true; self.onUnavailable?(error) }
                     self.player?.stop(); self.player = nil
-                    let utterance = AVSpeechUtterance(string: SpeechText.plain(text))
-                    utterance.voice = AVSpeechSynthesisVoice(language: language)
+                    let utterance = AVSpeechUtterance(string: SpeechText.plain(sentence.text))
+                    utterance.voice = AVSpeechSynthesisVoice(language: sentence.language)
                     try? self.activate(); self.synthesizer.speak(utterance)
                     do {
                         try await Task.sleep(for: .milliseconds(100))
@@ -60,6 +76,9 @@ final class ReplyVoice {
         }
     }
     func stop() {
+        reportedFailure = false
+        sentences.cancel(); fetching?.cancel(); fetching = nil
+        for sentence in waiting { sentence.audio.cancel() }
         generation = UUID(); worker?.cancel(); worker = nil; waiting = []
         player?.stop(); player = nil; synthesizer.stopSpeaking(at: .immediate)
         if !recording { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
