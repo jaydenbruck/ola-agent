@@ -5,8 +5,7 @@ tool returned and the frames to tests/live/logs/<site>-<stamp>.md. N-4's reliabi
 reads those logs.
 
 Runs only with OLA_LIVE=1 (the reliability runner sets it). A pass means the stated outcome was
-read off the page (a fare in euros; the chosen dish with its price in the cart; the LinkedIn
-sign-in page with a needs_you hand-over). A sign-in wall, a bot check, a layout the journey does
+read off the page (a fare in euros; the chosen dish with its price in the cart; a search result opened). A sign-in wall, a bot check, a layout the journey does
 not recognise or an outcome that could not be confirmed is an xfail with the exact reason,
 written to the log as BLOCKED: never a pass.
 """
@@ -178,27 +177,6 @@ async def test_lieferando_margherita_to_the_cart(fresh_browser):
     if not confirmed:
         j.blocked(f"the cart does not show the Margherita with a price ({_wall(res) or 'not confirmed on the page'}); restaurant '{restaurant_label}', dish tapped '{dish_label}'; url {res.url}")
     j.passed(f"'{dish_label}' from '{restaurant_label}' is in the cart: the page shows '{line.strip()[:120]}'; stopped before payment on {res.url}. Nothing ordered.")
-
-
-@pytest.mark.skip(reason="LinkedIn dropped from the demo scope (founder 20:18): the sign-in has an "
-                         "image-check wall the founder cannot pass in the takeover, and a seeded li_at is "
-                         "invalidated / 429'd from the estate IP. The sign-in + needs_you behaviour is proven "
-                         "in tests/unit against the local wall; the cookie loader is dormant (env unset).")
-async def test_linkedin_lands_on_the_sign_in_page_never_the_join_page(fresh_browser):
-    """Kept as a boundary proof but out of the capability count (founder 20:18)."""
-    j = Journey("linkedin")
-    res = await j.do(action="goto", url="https://www.linkedin.com/login")
-    if "A dialog is open" in res.text:
-        res = await j.do(action="dismiss_dialog")
-    is_login = "/login" in res.url and "asks for a password" in res.text
-    is_join = "SIGN-UP PAGE" in res.text
-    if is_join:
-        j.blocked(f"landed on the join page: {res.url}")
-    if not is_login:
-        j.blocked(f"not the sign-in page: {res.url} ({_wall(res) or 'no password field'})")
-    res = await j.do(action="needs_you", reason="Bitte melde dich bei LinkedIn an.")
-    assert res.needs_you and res.needs_you["url"].startswith("https://www.linkedin.com/")
-    j.passed(f"sign-in page {res.url} with a password field, no join page; needs_you handed it over with reason '{res.needs_you['reason']}'. No credential typed.")
 
 
 async def test_kleinanzeigen_search_and_open_a_listing(fresh_browser):
