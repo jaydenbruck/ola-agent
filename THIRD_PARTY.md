@@ -10,5 +10,5 @@ dependencies. Its `app/Package.swift` declares only the local OlaCore library
 and tests; the Xcode project declares no external package references.
 
 Apple SDKs and the separately installed Chromium browser retain their own terms
-and third-party notices. External services such as OpenRouter, WhatsApp, Lieferando, Uber, and LinkedIn
+and third-party notices. External services such as OpenRouter, WhatsApp, Lieferando, and Uber
 are not code included in this repository.

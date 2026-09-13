@@ -13,9 +13,8 @@ the sections below will be checked against `main` at the submission freeze.
 
 ## External apps
 
-The planned integrations are WhatsApp, Lieferando, Uber, and LinkedIn, all through
-Ola's own signed-in browser.
-Live evidence is pending. Listing an app here does not claim a successful run.
+The three external apps are WhatsApp Web, Lieferando, and Uber, all through
+Ola's own browser. Every sign-in happens through the phone takeover.
 
 ## How it works
 
@@ -29,7 +28,7 @@ SwiftUI door: chat, job screens, takeover
                     |
        Ola's own signed-in browser
                     |
-   WhatsApp / Lieferando / Uber / LinkedIn
+       WhatsApp / Lieferando / Uber
                     |
   page needs you -> takeover -> resume job
 
@@ -125,12 +124,12 @@ Thanks to Python, SwiftUI, FastAPI, Playwright, and OpenRouter.
 
 ## Limits
 
-This is an unfinished hackathon submission. Runtime state, concurrent jobs,
-reminders, site access, and takeover still need verification. Sites can require
-a personal login, reject automation, or change their pages. WhatsApp needs a
-linked session. You sign into sites through Ola's browser. The local setup uses
-one shared bearer token.
-The final limits will reflect the code and recorded runs on `main`.
+LinkedIn sign-in is not demoed. The estate egress is a datacenter IP, and
+LinkedIn's anti-automation invalidates a valid session cookie replayed from it:
+the browser landed on `/login/` and the cookie was dropped. The image security
+check cannot be completed through the 2 fps takeover. The cookie-seed loader,
+`OLA_SEED_COOKIES` in `server/ola/tools/browser.py`, is in the repository and
+works from a residential IP; it is disabled on the demo estate.
 
 ## License
 

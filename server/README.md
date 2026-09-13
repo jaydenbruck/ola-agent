@@ -31,7 +31,8 @@ prefix, such as `/agent`. The proxy must route that public prefix to the server.
 upload directory. Empty data-path values use the server defaults. See the root
 [environment example](../.env.example).
 
-WhatsApp, Lieferando, Uber, and LinkedIn use Ola's own signed-in browser.
+WhatsApp Web, Lieferando, and Uber use Ola's own browser. Every sign-in happens
+through the phone takeover.
 For WhatsApp Web, link your session by scanning the QR code during takeover.
 
 The core routes are `POST /chat`, `GET /events/{thread_id}`, `GET /jobs`,
