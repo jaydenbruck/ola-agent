@@ -80,7 +80,7 @@ def run_suite(suite, env, timeout):
             cases = read_cases(xml_path, suite)
         except ET.ParseError:
             code = 125
-    if code not in (0, 1) or not cases:
+    if not cases or (code != 0 and not any(case["state"] in ("failed", "error") for case in cases)):
         cases.append({"suite": suite, "class": "collection", "name": "Suite completion", "state": "error",
                       "detail": f"pytest exit {code}; see build/reliability/{suite}.log", "seconds": 0})
     return {"suite": suite, "command": f"python -m pytest server/tests/{suite} -q --tb=short --junitxml=build/reliability/{suite}.xml",
@@ -118,6 +118,7 @@ def proves(case):
         "whatsapp_emits_observed_steps": "Each reported action has a page image captured after it",
         "live_whatsapp_qr_takeover": "The real WhatsApp QR page provides a takeover request and image",
         "live_whatsapp_send_and_read": "A real send receipt and matching message ID confirm the chat round trip",
+        "real_routes_parallel_takeover_resume": "Real HTTP and SSE carry two overlapping browser jobs, chat during takeover, sign-in input, resume and page results",
         "junit_outcomes": "Keeps passes, failures, skips and setup errors distinct",
         "secrets_redacted": "Removes configured secrets and access tokens from saved evidence",
         "environment_precedence": "Preserves explicit environment settings when loading a file",
