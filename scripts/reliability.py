@@ -33,6 +33,7 @@ def environment(paths):
                     env.setdefault(match[1], match[2].strip().strip("\"'"))
     env["PYTHONPATH"] = str(ROOT / "server") + os.pathsep + env.get("PYTHONPATH", "")
     env["PYTHONIOENCODING"] = "utf-8"
+    env["OLA_LIVE"] = "1"  # The reliability command explicitly includes the authorized real-site journeys.
     return env
 
 
@@ -148,6 +149,9 @@ def reports(data):
                "was given that finding so linking and takeover use the same persistent session. No message was sent in that probe. "
                "The first local WhatsApp run had 17 passes and one fixture failure: resetting a page redeclared its JavaScript variables. "
                "We scoped the fixture script to each page load, then all 18 WhatsApp checks passed. "
+               "A later run hit two browser setup errors, including a Playwright driver allocation failure on this shared PC. "
+               "The test fixture now reuses one Chromium process with a fresh context for each test. An encoding error in a "
+               "German assertion was corrected; all 20 WhatsApp checks then passed. "
                "The founder removed email and Calendar from scope; their tests are excluded from this report.")
     limits = ["WhatsApp needs one QR linking step and an explicitly configured test contact for a live send; a QR screen is not a sent message.",
               "The integrations are WhatsApp, Lieferando, Uber and LinkedIn. Sign-in walls or blocked pages do not prove completed errands.",

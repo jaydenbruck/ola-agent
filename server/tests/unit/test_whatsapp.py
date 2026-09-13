@@ -35,40 +35,47 @@ document.querySelector('#main footer button').onclick=()=>{
 })();</script></body></html>"""
 
 
-@pytest_asyncio.fixture
-async def bridge(monkeypatch):
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def chromium():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.route("https://web.whatsapp.com/**", lambda route: route.fulfill(body=PAGE, content_type="text/html"))
-        calls = []
-
-        async def page_for_job(job_id, lang="de"):
-            return page
-
-        async def run(job_id, args, lang="de"):
-            calls.append(dict(args))
-            if args["action"] == "goto":
-                await page.goto(args["url"])
-            return SimpleNamespace(ok=True, text=await page.locator("body").inner_text(), image=await page.screenshot(type="jpeg"),
-                                   step=args["action"], needs_you={"reason": args["reason"], "url": page.url} if args["action"] == "needs_you" else None)
-
-        page_lock = asyncio.Lock()
-        adapter = SimpleNamespace(page_for_job=page_for_job, run=run, page=page, calls=calls, job_lock=lambda _: page_lock,
-                                  frame_url=lambda job: f"/jobs/{job}/frame.jpg")
-        monkeypatch.setattr(whatsapp, "_bridge", lambda: adapter)
-        monkeypatch.setattr(whatsapp, "_lock", asyncio.Lock())
-        monkeypatch.setattr(whatsapp, "WAIT_MS", 300)
-        # Receipt polling is tested without waiting 15 seconds for known local failures.
-        original_sleep = asyncio.sleep
-        async def quick_sleep(seconds):
-            await original_sleep(0)
-        monkeypatch.setattr(whatsapp.asyncio, "sleep", quick_sleep)
-        yield adapter
+        yield browser
         await browser.close()
 
 
-@pytest.mark.asyncio
+@pytest_asyncio.fixture(loop_scope="module")
+async def bridge(monkeypatch, chromium):
+    context = await chromium.new_context()
+    page = await context.new_page()
+    await page.route("https://web.whatsapp.com/**", lambda route: route.fulfill(body=PAGE, content_type="text/html"))
+    calls = []
+
+    async def page_for_job(job_id, lang="de"):
+        return page
+
+    async def run(job_id, args, lang="de"):
+        calls.append(dict(args))
+        if args["action"] == "goto":
+            await page.goto(args["url"])
+        return SimpleNamespace(ok=True, text=await page.locator("body").inner_text(), image=await page.screenshot(type="jpeg"),
+                               step=args["action"], needs_you={"reason": args["reason"], "url": page.url} if args["action"] == "needs_you" else None)
+
+    page_lock = asyncio.Lock()
+    adapter = SimpleNamespace(page_for_job=page_for_job, run=run, page=page, calls=calls, job_lock=lambda _: page_lock,
+                              frame_url=lambda job: f"/jobs/{job}/frame.jpg")
+    monkeypatch.setattr(whatsapp, "_bridge", lambda: adapter)
+    monkeypatch.setattr(whatsapp, "_lock", asyncio.Lock())
+    monkeypatch.setattr(whatsapp, "WAIT_MS", 300)
+    # Receipt polling is tested without waiting 15 seconds for known local failures.
+    original_sleep = asyncio.sleep
+    async def quick_sleep(seconds):
+        await original_sleep(0)
+    monkeypatch.setattr(whatsapp.asyncio, "sleep", quick_sleep)
+    yield adapter
+    await context.close()
+
+
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_send_confirms_new_receipt(bridge):
     result = await whatsapp.send_message("Alex", "Grüße\nBis später!", lang="de")
     assert result.ok and json.loads(result.text)["status"] == "sent"
@@ -77,7 +84,7 @@ async def test_whatsapp_send_confirms_new_receipt(bridge):
     assert sum(c["action"] == "read" for c in bridge.calls) >= 4
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_read_loaded_messages(bridge):
     result = await whatsapp.read_chat("Alex")
     content = json.loads(result.text)
@@ -86,14 +93,14 @@ async def test_whatsapp_read_loaded_messages(bridge):
     assert await bridge.page.evaluate("window.sends") == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_read_chat_list(bridge):
     result = await whatsapp.read_chat()
     assert "Alex" in json.loads(result.text)["chats"]
     assert await bridge.page.evaluate("window.sends") == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_qr_requests_takeover(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.set_content('<canvas aria-label="Scan this QR code to link a device!"></canvas>')
@@ -102,7 +109,7 @@ async def test_whatsapp_qr_requests_takeover(bridge):
     assert bridge.calls[-1]["action"] == "needs_you"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_hidden_chat_list_does_not_mask_qr(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.set_content('<div id=pane-side hidden></div><canvas aria-label="Scan this QR code to link a device!"></canvas>')
@@ -110,7 +117,7 @@ async def test_whatsapp_hidden_chat_list_does_not_mask_qr(bridge):
     assert result.needs_you and result.ok
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_resume_uses_same_page(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.set_content('<canvas aria-label="Scan this QR code to link a device!"></canvas>')
@@ -122,7 +129,7 @@ async def test_whatsapp_resume_uses_same_page(bridge):
     assert not any(c["action"] == "goto" for c in bridge.calls)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_duplicate_contact_does_not_send(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.evaluate("document.querySelector('#pane-side').append(document.querySelector('[title=Alex]').cloneNode(true))")
@@ -131,14 +138,14 @@ async def test_whatsapp_duplicate_contact_does_not_send(bridge):
     assert await bridge.page.evaluate("window.sends") == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_missing_contact_does_not_send(bridge):
     result = await whatsapp.send_message("Unknown person", "Hello")
     assert not result.ok and "nichts gesendet" in result.text
     assert await bridge.page.evaluate("window.sends") == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize("mode", ["queued", "no-new-message"])
 async def test_whatsapp_unconfirmed_send_is_not_retried(bridge, mode):
     await bridge.page.goto(whatsapp.HOME)
@@ -148,7 +155,7 @@ async def test_whatsapp_unconfirmed_send_is_not_retried(bridge, mode):
     assert await bridge.page.evaluate("window.sends") == 1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_changed_recipient_does_not_send(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.evaluate("document.querySelector('#main footer [role=textbox]').addEventListener('input',()=>document.querySelector('#main header span').title='Sam')")
@@ -157,7 +164,7 @@ async def test_whatsapp_changed_recipient_does_not_send(bridge):
     assert await bridge.page.evaluate("window.sends") == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_missing_send_control_does_not_send(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.locator("button").evaluate("e=>e.remove()")
@@ -166,7 +173,7 @@ async def test_whatsapp_missing_send_control_does_not_send(bridge):
     assert await bridge.page.evaluate("window.sends") == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_unready_page_is_not_linked(bridge):
     await bridge.page.goto(whatsapp.HOME)
     await bridge.page.set_content("<p>Loading</p>")
@@ -174,14 +181,14 @@ async def test_whatsapp_unready_page_is_not_linked(bridge):
     assert not result.ok and not result.needs_you and "not ready" in result.text
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize("contact,text", [("", "Hello"), (None, "Hello"), ("Alex", ""), ("Alex", None), ("Alex", 12)])
 async def test_whatsapp_rejects_missing_message(contact, text):
     with pytest.raises(ValueError):
         await whatsapp.send_message(contact, text)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_emits_observed_steps(bridge):
     steps = []
     async def emit(result):
@@ -192,7 +199,7 @@ async def test_whatsapp_emits_observed_steps(bridge):
     assert "gesendet" in result.step  # The agent publishes the final action once.
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="module")
 async def test_whatsapp_registry_handler_emits_frames(bridge):
     from ola.events import EventBus
     from ola.tools import Context, Registry
