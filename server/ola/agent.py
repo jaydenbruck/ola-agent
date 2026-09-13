@@ -120,7 +120,8 @@ class Agent:
         history = self.threads.setdefault(thread_id, [])
         user_msg = self._user_message(text, attachment_ids)
         messages = [{"role": "system", "content": self._turn_system(lang)}, *history, user_msg]
-        ctx = Context(thread_id=thread_id, lang=lang, attachment_path=self.attachments.path, agent=self)
+        turn_done = asyncio.Event()
+        ctx = Context(thread_id=thread_id, lang=lang, attachment_path=self.attachments.path, agent=self, turn_done=turn_done)
         spoken = ""
         try:
             for _hop in range(MAX_TURN_HOPS):
@@ -144,6 +145,7 @@ class Agent:
         if spoken:
             history.append({"role": "assistant", "content": spoken})
         del history[:-HISTORY_MESSAGES]
+        turn_done.set()  # reminders set in this turn may speak now
         return spoken
 
     async def speak(self, thread_id: str, text: str) -> str:

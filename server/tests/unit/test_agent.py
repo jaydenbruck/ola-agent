@@ -316,7 +316,8 @@ async def test_remember_and_remind(make_agent, bus, memory):
     await agent.run_turn(T, "Merk dir: Luisa wohnt in der Gartenstraße 112, Langen. Erinner mich gleich.", [], "x")
     assert "Luisa wohnt in der Gartenstraße 112, Langen." in memory.facts()
     events = await drain(bus, T, lambda h: types(h).count("assistant.done") == 2)
-    assert "Denk an Luisa!" in [e["text"] for e in events if e["type"] == "assistant.done"]
+    spoken = [e["text"] for e in events if e["type"] == "assistant.done"]
+    assert spoken == ["Merk ich mir.", "Denk an Luisa!"], "a due reminder waits for the turn's own acknowledgement"
     assert agent.reminders.pending() == []
 
 

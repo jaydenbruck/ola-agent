@@ -91,8 +91,12 @@ async def test_reminder_is_spoken_later(agent):
     agent.start_turn(t, "Sag mir in 3 Sekunden Bescheid, dass ich die Pizza aus dem Ofen holen soll.")
     events = await wait_for(agent.bus, t, lambda ev: [e["type"] for e in ev].count("assistant.done") >= 2, timeout=60)
     spoken = [e["text"] for e in events if e["type"] == "assistant.done"]
-    assert any("pizza" in s.lower() for s in spoken[1:]), spoken
+    ack, reminder = spoken[0], spoken[-1]
+    assert "pizza" in reminder.lower() and "ofen" in reminder.lower(), spoken
+    assert ack.strip() and ack != reminder, spoken
     assert "job.started" not in [e["type"] for e in events], "a reminder is not a job"
+    done = [e for e in events if e["type"] == "assistant.done"]
+    assert done[-1]["ts"] >= done[0]["ts"], "the reminder is spoken after the acknowledgement, never before"
     print("\nSPOKEN:", spoken)
 
 

@@ -39,6 +39,7 @@ class Reminder:
     at: datetime
     text: str
     task: asyncio.Task[None] | None = None
+    gate: Any = None  # the turn that set it must finish speaking first
 
 
 @dataclass
@@ -47,8 +48,8 @@ class Reminders:
     now: Callable[[], datetime] = lambda: datetime.now(BERLIN)
     items: dict[str, Reminder] = field(default_factory=dict)
 
-    def schedule(self, thread_id: str, at: datetime, text: str) -> Reminder:
-        rem = Reminder(id=uuid.uuid4().hex[:8], thread_id=thread_id, at=at, text=text)
+    def schedule(self, thread_id: str, at: datetime, text: str, gate: Any = None) -> Reminder:
+        rem = Reminder(id=uuid.uuid4().hex[:8], thread_id=thread_id, at=at, text=text, gate=gate)
         rem.task = asyncio.create_task(self._fire(rem))
         self.items[rem.id] = rem
         return rem
@@ -57,6 +58,8 @@ class Reminders:
         delay = (rem.at - self.now()).total_seconds()
         if delay > 0:
             await asyncio.sleep(delay)
+        if rem.gate is not None:  # never speak a reminder before the acknowledgement that promised it
+            await rem.gate.wait()
         self.items.pop(rem.id, None)
         await self.speak(rem.thread_id, rem.text)
 
@@ -74,8 +77,11 @@ class Reminders:
             at = parse_when(str(args.get("when", "")), self.now())
             if at is None:
                 return "Error: I could not read that time. Give an ISO 8601 time with offset."
-            rem = self.schedule(ctx.thread_id, at, str(args.get("text", "")).strip() or "Reminder.")
-            return f"Reminder set for {at.astimezone(BERLIN).strftime('%d.%m.%Y %H:%M')}."
+            self.schedule(ctx.thread_id, at, str(args.get("text", "")).strip() or "Reminder.", gate=ctx.turn_done)
+            return (
+                f"Reminder set for {at.astimezone(BERLIN).strftime('%d.%m.%Y %H:%M:%S')}. If you have not "
+                "acknowledged the member yet, do it now in one short sentence; if you already did, answer with nothing."
+            )
 
         registry.register(TOOL["name"], TOOL["description"], TOOL["parameters"], remind_at, scope="turn", with_ctx=True)
 

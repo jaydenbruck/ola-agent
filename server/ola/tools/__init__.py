@@ -31,6 +31,7 @@ class Context:
     lang: str = "de"
     attachment_path: Callable[[str], Path | None] = lambda _id: None
     agent: Any = None
+    turn_done: Any = None  # asyncio.Event set when the turn that runs this tool has finished speaking
 
 
 @dataclass
