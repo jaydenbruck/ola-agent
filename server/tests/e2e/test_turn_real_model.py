@@ -59,7 +59,7 @@ def agent(tmp_path):
     calls: list[str] = []
     mem = Memory(tmp_path / "facts.json")
     mem.remember("Wohnt in der Dieburger Straße 48a, 63303 Dreieich.")
-    mem.remember("Sprache: Deutsch zuerst, Englisch geht auch.")
+    mem.remember("Language: English first, German is fine.")
     a = Agent(Model(), EventBus(), mem, registry_with_lookup(calls), Attachments(tmp_path / "att"))
     a.lookup_calls = calls  # type: ignore[attr-defined]
     return a

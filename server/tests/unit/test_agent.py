@@ -344,7 +344,7 @@ async def test_failed_job_is_spoken_honestly(make_agent, bus):
         return Reply(tool_calls=[call("spawn_job", title="Test", instructions="x")])
 
     agent = make_agent(script, reg)
-    agent.start_turn(T, "Test.")
+    agent.start_turn(T, "Mach das bitte für mich.")
     events = await drain(bus, T, lambda h: types(h).count("assistant.done") == 2)
     failed = next(e for e in events if e["type"] == "job.failed")
     assert failed["reason"] == "Das hat nicht geklappt."

@@ -58,12 +58,13 @@ def test_memory_roundtrip(tmp_path):
     assert "nothing about the member" in mem.prompt_block()
     assert mem.remember("  Name:   Jayden. ") == "Remembered."
     assert mem.remember("Name: Jayden.") == "Already known."
-    assert mem.remember("Sprache: Deutsch zuerst.") == "Remembered."
-    assert mem.facts() == ["Name: Jayden.", "Sprache: Deutsch zuerst."]
-    assert mem.language() == "de"
-    assert mem.prompt_block() == "What you know about the member:\n- Name: Jayden.\n- Sprache: Deutsch zuerst."
+    assert mem.remember("Language: English first, German is fine.") == "Remembered."
+    assert mem.facts() == ["Name: Jayden.", "Language: English first, German is fine."]
+    assert mem.language() == "en", "the language named first wins"
+    assert mem.prompt_block() == "What you know about the member:\n- Name: Jayden.\n- Language: English first, German is fine."
     assert (tmp_path / "facts.json").read_text(encoding="utf-8").startswith('{\n  "facts": [')
-    assert mem.forget("Sprache") == "Forgotten." and mem.facts() == ["Name: Jayden."]
+    assert mem.forget("Language") == "Forgotten." and mem.facts() == ["Name: Jayden."]
+    assert mem.remember("Sprache: Deutsch zuerst, Englisch geht auch.") and mem.language() == "de"
     assert Memory(tmp_path / "missing.json").facts() == []
 
 
@@ -72,7 +73,7 @@ def test_example_facts_file_is_valid():
 
     example = Path(__file__).resolve().parents[2] / "memory" / "facts.example.json"
     mem = Memory(example)
-    assert any("Dreieich" in f for f in mem.facts()) and mem.language() == "de"
+    assert any("Dreieich" in f for f in mem.facts()) and mem.language() == "en"
 
 
 def test_prompts_carry_voice_rules_and_facts():
@@ -92,8 +93,9 @@ def test_prompts_carry_voice_rules_and_facts():
 def test_language_detection():
     assert prompt.detect_language("Bestell mir bitte eine Margherita und schau was Uber kostet.") == "de"
     assert prompt.detect_language("Please order me a pizza and check what Uber costs.") == "en"
+    assert prompt.detect_language("Pizza") == "en", "unclear means English"
     assert prompt.detect_language("Pizza", fallback="de") == "de"
-    assert prompt.detect_language("Pizza", fallback="en") == "en"
+    assert "on the first turn, English" in prompt.VOICE
     assert prompt.detect_language("Schreib Lisa, dass ich später komme.") == "de"
 
 

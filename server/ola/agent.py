@@ -116,7 +116,7 @@ class Agent:
         return turn_id
 
     async def run_turn(self, thread_id: str, text: str, attachment_ids: list[str], turn_id: str) -> str:
-        lang = prompts.detect_language(text, self.memory.language() or "de")
+        lang = prompts.detect_language(text, self.memory.language() or "en")
         history = self.threads.setdefault(thread_id, [])
         user_msg = self._user_message(text, attachment_ids)
         messages = [{"role": "system", "content": self._turn_system(lang)}, *history, user_msg]

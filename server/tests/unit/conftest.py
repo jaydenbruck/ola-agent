@@ -64,7 +64,7 @@ def tool_names(tools: list[dict[str, Any]] | None) -> list[str]:
 def memory(tmp_path) -> Memory:
     mem = Memory(tmp_path / "facts.json")
     mem.remember("Home: Dieburger Straße 48a, 63303 Dreieich.")
-    mem.remember("Language: German first, English is fine.")
+    mem.remember("Language: English first, German is fine.")
     return mem
 
 

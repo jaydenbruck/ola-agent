@@ -41,13 +41,12 @@ class Memory:
         return "Forgotten."
 
     def language(self) -> str | None:
-        """'de' or 'en' when a fact names the member's language, else None."""
+        """'en' or 'de' when a fact names the member's language; the one named first wins."""
         text = " ".join(self.facts()).lower()
-        if any(w in text for w in ("deutsch", "german")):
-            return "de"
-        if any(w in text for w in ("englisch", "english")):
-            return "en"
-        return None
+        first = {lang: min((text.find(w) for w in words if w in text), default=-1)
+                 for lang, words in (("en", ("englisch", "english")), ("de", ("deutsch", "german")))}
+        named = {lang: pos for lang, pos in first.items() if pos >= 0}
+        return min(named, key=named.get) if named else None
 
     def prompt_block(self) -> str:
         facts = self.facts()
