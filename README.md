@@ -74,9 +74,10 @@ The two-minute walkthrough is linked at the top of this file.
 
 ---
 
-Built by Jayden Bruck during the Multi-App AI Agent Hackathon. All rights reserved.
-This source is published for evaluation only. See [LICENSE](LICENSE). Dependencies and
-their licenses are in [THIRD_PARTY.md](THIRD_PARTY.md).
+Built in one day for the Multi-App AI Agent Hackathon by Jayden Bruck, working with a
+team of AI coding agents (mainly GPT-6 Astra and Claude Fable 5.1) across about 1.5
+billion tokens. All rights reserved. This source is published for evaluation only. See
+[LICENSE](LICENSE). Dependencies and their licenses are in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 **Limits.** Consumer sites fight automation. Ola runs a real, signed-in browser from a
 normal network to work with them, and hands you any check it cannot pass. It touches an
