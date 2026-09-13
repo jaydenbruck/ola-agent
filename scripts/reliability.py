@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import io
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
+import uuid
 from datetime import datetime
 import xml.etree.ElementTree as ET
 from zoneinfo import ZoneInfo
@@ -92,6 +95,8 @@ def run_suite(suite, env, timeout):
 
 
 def capability(case):
+    if case["suite"] == "swift":
+        return "iPhone event parsing and state"
     name = (case["class"] + " " + case["name"]).lower()
     if "whatsapp" in name:
         return "WhatsApp"
@@ -140,7 +145,8 @@ def proves(case):
     name, _, variant = case["name"].removeprefix("test_").partition("[")
     if name in descriptions:
         return descriptions[name] + (". Case: " + variant.rstrip("]") if variant else "")
-    text = re.sub(r"^test_", "", case["name"]).replace("_", " ")
+    text = re.sub(r"^test_?", "", case["name"]).replace("_", " ")
+    text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text)
     return text[0].upper() + text[1:] if text else "Unnamed check"
 
 
@@ -153,12 +159,14 @@ def reports(data):
     metadata = f"Tested commit {data['commit']}. Window {data['started']} to {data['ended']}."
     if data.get("environment"):
         metadata += f" Python {data['environment']['python']} on {data['environment']['platform']}; real-model setting {data['environment']['model']}."
-    method = ("The runner executes the entire unit directory, then e2e, then live, using the same Python environment. "
+    method = ("The runner executes the entire server unit directory, then e2e, then live, using the same Python environment. "
               "Each row comes from pytest JUnit output, with parameter cases counted separately. WhatsApp checks exercise "
               "the browser wrapper against local pages. E2e checks use the real "
               "model when configured. Live checks require their account credentials. Blocked means an attempted journey "
               "did not establish its requested outcome; it is not a pass. A skip proves nothing about a live service. "
-              "Raw sanitized XML, command logs and the run manifest are stored under build/reliability. No count is a success-rate forecast.")
+              "Portable Swift tests then run in an isolated build directory; the real route journey supplies their SSE fixture. "
+              "This does not compile or test iOS rendering. Sanitized XML, command logs and the run manifest are stored "
+              "under build/reliability. No count is a success-rate forecast.")
     failures = [f"{proves(c)}: {c['detail']}" for c in cases if c["state"] in ("failed", "error")]
     history = ("The first real WhatsApp visit showed a browser compatibility screen with Playwright's default "
                "headless identity. Using a desktop Chrome identity reached the real QR linking page. The browser lane "
@@ -223,14 +231,59 @@ def reports(data):
 def source_state():
     paths = []
     for flags in (["--cached"], ["--others", "--exclude-standard"]):
-        listing = subprocess.check_output(["git", "ls-files", *flags, "--", "server", "scripts"], cwd=ROOT, text=True)
-        paths.extend(p for p in listing.splitlines() if Path(p).suffix in (".py", ".toml", ".html", ".css", ".js", ".sh") and "/logs/" not in p)
+        listing = subprocess.check_output(["git", "ls-files", *flags, "--", "server", "scripts", "app"], cwd=ROOT, text=True)
+        paths.extend(p for p in listing.splitlines() if Path(p).suffix in (".py", ".toml", ".html", ".css", ".js", ".sh", ".swift") and "/logs/" not in p)
     digest = hashlib.sha256()
     for path in sorted(set(paths)):
         full = ROOT / path
         if full.exists():
             digest.update(path.encode() + b"\0" + full.read_bytes() + b"\0")
     return digest.hexdigest()
+
+
+def run_swift(env, timeout):
+    """Use the app's portable package, with xUnit evidence and an isolated WSL directory."""
+    started, output, cases, code = stamp(), "", [], 0
+    xml_path = OUT / "swift.xml"
+    xml_path.unlink(missing_ok=True)
+    command = "swift test --package-path app --xunit-output build/reliability/swift.xml"
+    try:
+        if platform.system() == "Windows":
+            prefix = ["wsl", "-d", env.get("OLA_SWIFT_DISTRO", "CTO-OpenClaw-Proof-20260908"), "--"]
+            swift = env.get("OLA_SWIFT_PATH", "/tmp/n3-swift/swift-6.0.3-RELEASE-ubuntu24.04/usr/bin/swift")
+            target = "/tmp/ola-reliability-" + uuid.uuid4().hex
+            subprocess.run(prefix + ["mkdir", "-p", target], check=True, capture_output=True, timeout=30)
+            buffer = io.BytesIO()
+            with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+                for name in ("Ola", "Tests", "Package.swift"):
+                    archive.add(ROOT / "app" / name, arcname=name)
+                if (OUT / "app-events.sse").exists():
+                    archive.add(OUT / "app-events.sse", arcname="events.sse")
+            subprocess.run(prefix + ["tar", "xzf", "-", "-C", target], input=buffer.getvalue(), check=True, capture_output=True, timeout=60)
+            fixture = ["env", "OLA_EVENT_FIXTURE=" + target + "/events.sse"] if (OUT / "app-events.sse").exists() else []
+            run = subprocess.run(prefix + fixture + [swift, "test", "--package-path", target, "--jobs", "1", "--xunit-output", target + "/swift.xml"],
+                                 capture_output=True, timeout=timeout)
+            code, output = run.returncode, (run.stdout + run.stderr).decode("utf-8", "replace")
+            copied = subprocess.run(prefix + ["cat", target + "/swift.xml"], capture_output=True, timeout=30)
+            if copied.returncode == 0:
+                xml_path.write_text(redact(copied.stdout.decode("utf-8", "replace"), env), encoding="utf-8")
+            command = f"WSL {prefix[2]}: {swift} test --package-path <isolated copy of app> --jobs 1 --xunit-output swift.xml"
+        else:
+            swift_env = env.copy()
+            if (OUT / "app-events.sse").exists():
+                swift_env["OLA_EVENT_FIXTURE"] = str(OUT / "app-events.sse")
+            run = subprocess.run(["swift", "test", "--package-path", str(ROOT / "app"), "--scratch-path", str(OUT / "swift-build"),
+                                  "--jobs", "1", "--xunit-output", str(xml_path)], env=swift_env, capture_output=True, timeout=timeout)
+            code, output = run.returncode, (run.stdout + run.stderr).decode("utf-8", "replace")
+        if xml_path.exists():
+            cases = read_cases(xml_path, "swift")
+    except (OSError, subprocess.SubprocessError, ET.ParseError) as error:
+        code, output = 125, "Swift test execution did not complete: " + type(error).__name__
+    (OUT / "swift.log").write_text(redact(output, env), encoding="utf-8")
+    if not cases or (code and not any(c["state"] in ("failed", "error") for c in cases)):
+        cases.append({"suite": "swift", "class": "collection", "name": "Swift suite completion", "state": "error",
+                      "detail": f"Exit {code}; see build/reliability/swift.log", "seconds": 0})
+    return {"suite": "swift", "command": command, "started": started, "ended": stamp(), "exit": code, "cases": cases}
 
 
 def pdf():
@@ -261,9 +314,13 @@ def main():
         dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
         data = {"commit": commit + (" + working-tree changes" if dirty else ""), "source_sha256": source_state(), "started": stamp(), "runs": [],
                 "environment": {"python": platform.python_version(), "platform": platform.system(), "model": env.get("OLA_MODEL", "x-ai/grok-4.5")}}
+        (OUT / "app-events.sse").unlink(missing_ok=True)
         for suite in ("unit", "e2e", "live"):
             print("Running " + suite, flush=True)
             data["runs"].append(run_suite(suite, env, args.timeout))
+        if (ROOT / "app" / "Package.swift").exists():
+            print("Running portable Swift tests", flush=True)
+            data["runs"].append(run_swift(env, args.timeout))
         data["ended"] = stamp()
         data["journeys"] = []
         for path in sorted((ROOT / "server" / "tests" / "live" / "logs").glob("*.md")):

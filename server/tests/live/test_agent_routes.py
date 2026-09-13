@@ -1,6 +1,7 @@
 """Real model + actual HTTP/SSE routes + real Chromium on the local sign-in site."""
 import json
 import os
+from pathlib import Path
 import socket
 import threading
 import time
@@ -46,17 +47,22 @@ def test_real_routes_parallel_takeover_resume(tmp_path, monkeypatch):
     thread.start()
 
     def events_until(client, predicate, after=0, thread_id="route-journey"):
-        events = []
+        events, lines = [], []
         deadline = time.monotonic() + 150
         with client.stream("GET", "/events/" + thread_id, params={"after": after}) as response:
             assert response.status_code == 200
             for line in response.iter_lines():
+                lines.append(line)
                 if time.monotonic() > deadline:
                     pytest.fail("The route journey exceeded 150 seconds")
                 if line.startswith("data:"):
                     events.append(json.loads(line[5:]))
                     assert events[-1]["type"] != "job.failed", "A real browser job failed"
                     if predicate(events):
+                        if thread_id == "route-chat-available":
+                            fixture = Path(__file__).resolve().parents[3] / "build" / "reliability" / "app-events.sse"
+                            fixture.parent.mkdir(parents=True, exist_ok=True)
+                            fixture.write_text("\n".join(lines) + "\n\n", encoding="utf-8")
                         return events
         pytest.fail("SSE ended before the expected result")
 
