@@ -197,6 +197,13 @@ enum ServiceURL {
     }
 }
 
+enum WireResponse {
+    static func isRejected(_ data: Data) -> Bool {
+        guard let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+        return result["ok"] as? Bool == false
+    }
+}
+
 /// Coordinates are relative to the fitted screenshot, never the surrounding letterbox.
 enum FrameGeometry {
     static func point(x: Double, y: Double, width: Double, height: Double) -> (Double, Double)? {

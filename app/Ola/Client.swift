@@ -45,7 +45,7 @@ enum SecureSettings {
     }
 }
 
-enum ClientError: Error { case configuration, response(Int), storage, image }
+enum ClientError: Error { case configuration, response(Int), storage, image, rejected }
 
 struct API {
     let connection: Connection
@@ -66,6 +66,7 @@ struct API {
         let request = try request(path, method: "POST", body: JSONSerialization.data(withJSONObject: body))
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response)
+        if WireResponse.isRejected(data) { throw ClientError.rejected }
         return data
     }
     func upload(_ data: Data) async throws -> String {

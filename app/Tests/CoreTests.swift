@@ -2,6 +2,11 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testRejectedInputCannotCountAsAnAcceptedAction() {
+        XCTAssertTrue(WireResponse.isRejected(Data(#"{"ok":false,"error":"TargetClosedError"}"#.utf8)))
+        XCTAssertFalse(WireResponse.isRejected(Data(#"{"ok":true}"#.utf8)))
+        XCTAssertFalse(WireResponse.isRejected(Data(#"{"job_id":"one","state":"running"}"#.utf8)))
+    }
     func testPublicDoorPrefixOnEveryRoute() {
         let base = URL(string: "https://api.tryola.ai/agent/")!
         for route in ["/chat", "/events/thread", "/jobs?thread_id=thread&all=1", "/jobs/one/frame.jpg?t=2", "/jobs/one/input", "/jobs/one/resume", "/jobs/one/cancel", "/attachments"] {
