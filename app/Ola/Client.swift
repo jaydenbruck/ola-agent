@@ -124,6 +124,9 @@ final class AppModel: ObservableObject {
         }
         #endif
         restore()
+        #if DEBUG
+        if let thread = env["OLA_SMOKE_THREAD_ID"], !thread.isEmpty { threadID = thread; state = ThreadState() }
+        #endif
     }
     private var cacheURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

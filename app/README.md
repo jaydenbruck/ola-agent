@@ -4,7 +4,8 @@ Fresh SwiftUI app for the N-0 API, iOS 17 or later. One application target, `Ola
 
 Open `Ola.xcodeproj`, select the Ola scheme and an iPhone simulator, then Run.
 For a phone, set your development team and signing profile. No credentials are in the project.
-Settings defaults to `https://api.tryola.ai/agent/`. Enter the bearer token.
+The empty chat opens immediately, before a server connects. Settings defaults to
+`https://api.tryola.ai/agent`. Enter the bearer token.
 The server URL and token are stored in the device Keychain. Every route, including
 frames and replay, preserves the `/agent/` prefix.
 Use an address reachable from the phone, not the computer's loopback address.
@@ -18,7 +19,12 @@ swift test
 xcodebuild -project Ola.xcodeproj -scheme Ola -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
 ```
 
-The root `codemagic.yaml` runs both commands on a Mac and retains the unsigned simulator app.
+The application bundle is `ai.tryola.agent`, display name `Ola`, team `KKW3BWLT63`.
+The App Store Connect record is `Ola Agent`. The root `codemagic.yaml` runs both
+commands on a Mac and retains the unsigned simulator app.
+Its separate `ola-ios-testflight` workflow verifies fetched main and product identity,
+uses Codemagic-managed App Store signing, and uploads version 1.0 build 1.
+The signed workflow receives no estate token or simulator secret group.
 The app is compiled separately from the portable test package so the Xcode project has one target.
 
 ## Try each path
@@ -46,3 +52,10 @@ The probe asks the real model for one harmless formatted reply and checks authen
 chat acceptance, streaming, full-text completion, replay, and the jobs route. Its captured
 SSE bytes then run through the app's actual Swift parser and reducer. Evidence stays in
 the ignored `app/.evidence` directory. A missing live fixture is reported as a skipped test.
+
+An authorized DEBUG simulator run can use the secure `ola_smoke` group. Set
+`OLA_SMOKE_MODE=takeover` to open the real IANA reserved-domains page, wait for a
+real handoff, capture the full-screen frame, scroll, capture its update, and resume.
+The script uses its own fresh thread and cleans up only that thread's active jobs.
+Inspect the PNGs and `takeover.json` before claiming the view worked. Release has
+no smoke environment hooks.

@@ -113,6 +113,12 @@ struct ChatView: View {
                 }
                 #endif
             }
+            .onChange(of: model.state.jobs) { _, jobs in
+                #if DEBUG
+                if ProcessInfo.processInfo.environment["OLA_SMOKE_TAKEOVER"] == "1", takeover == nil,
+                   let job = jobs.first(where: { $0.state == .needsYou && $0.frameURL != nil }) { takeover = job }
+                #endif
+            }
         }.background(Palette.ground.ignoresSafeArea())
     }
     private var jobStrip: some View {

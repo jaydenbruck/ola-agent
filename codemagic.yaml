@@ -28,3 +28,65 @@ workflows:
       - build/ios/Build/Products/Debug-iphonesimulator/Ola.app
       - build/Ola.xcarchive
       - build/screenshots/*.png
+      - build/screenshots/*.json
+  ola-ios-testflight:
+    name: Ola Agent TestFlight from exact main
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    integrations:
+      app_store_connect: ola-asc
+    environment:
+      xcode: 26.5
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: ai.tryola.agent
+    scripts:
+      - name: Verify exact fetched main and product identity
+        script: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+          test -z "$(git status --porcelain)"
+          settings="$(xcodebuild -project app/Ola.xcodeproj -scheme Ola -configuration Release -showBuildSettings)"
+          test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ PRODUCT_BUNDLE_IDENTIFIER = / {print $2; exit}')" = "ai.tryola.agent"
+          test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ DEVELOPMENT_TEAM = / {print $2; exit}')" = "KKW3BWLT63"
+          test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ CURRENT_PROJECT_VERSION = / {print $2; exit}')" = "1"
+          test "$(printf '%s\n' "$settings" | awk -F ' = ' '/ MARKETING_VERSION = / {print $2; exit}')" = "1.0"
+      - name: Parser, reducer, and coordinate tests
+        script: |
+          set -euo pipefail
+          cd app
+          swift test 2>&1 | tee ../core-tests.log
+      - name: Apply Codemagic-managed signing profile
+        script: |
+          set -euo pipefail
+          mkdir -p build
+          xcode-project use-profiles \
+            --project app/Ola.xcodeproj \
+            --archive-method app-store \
+            --export-options-plist build/export_options.plist
+      - name: Archive, sign, and export IPA
+        script: |
+          set -euo pipefail
+          xcode-project build-ipa \
+            --project app/Ola.xcodeproj \
+            --scheme Ola \
+            --config Release \
+            --archive-directory build/archives \
+            --ipa-directory build/ipa \
+            --export-options-plist build/export_options.plist \
+            --archive-flags "-destination generic/platform=iOS" \
+            --archive-xcargs "DEVELOPMENT_TEAM=KKW3BWLT63 PRODUCT_BUNDLE_IDENTIFIER=ai.tryola.agent CURRENT_PROJECT_VERSION=1"
+          ipa="$(find build/ipa -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          test -n "$ipa"
+          printf '%s\n' "$ipa" > build/ipa-path.txt
+      - name: Upload to TestFlight
+        script: |
+          set -euo pipefail
+          ipa="$(cat build/ipa-path.txt)"
+          test -f "$ipa"
+          app-store-connect publish --path "$ipa"
+    artifacts:
+      - core-tests.log
+      - build/export_options.plist
+      - build/ipa/*.ipa

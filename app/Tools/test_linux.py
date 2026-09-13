@@ -1,10 +1,14 @@
 """Run portable Swift tests in the existing WSL test environment, without host mounts."""
 import io
+import argparse
 from pathlib import Path
 import subprocess
 import tarfile
 
 root = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser()
+parser.add_argument("--fixture", type=Path, default=root / ".evidence" / "events.sse")
+args = parser.parse_args()
 distro = "CTO-OpenClaw-Proof-20260908"
 prefix = ["wsl", "-d", distro, "--"]
 target = "/tmp/n3-swift/project"
@@ -14,7 +18,7 @@ buffer = io.BytesIO()
 with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
     for name in ["Ola", "Tests", "Package.swift"]:
         archive.add(root / name, arcname=name)
-    fixture = root / ".evidence" / "events.sse"
+    fixture = args.fixture
     if fixture.exists():
         archive.add(fixture, arcname="events.sse")
 subprocess.run(prefix + ["tar", "xzf", "-", "-C", target], input=buffer.getvalue(), check=True)
