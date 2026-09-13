@@ -165,7 +165,7 @@ struct JobSnapshot: Decodable {
     var card: JobCard {
         let status: JobState
         switch state {
-        case "needs_you", "waiting", "needsYou": status = .needsYou
+        case "needs_you", "waiting", "needsYou", "confirm": status = .needsYou
         case "done", "completed": status = .done
         case "failed", "cancelled", "canceled": status = .failed
         default: status = .running
