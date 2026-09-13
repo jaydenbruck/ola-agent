@@ -60,7 +60,7 @@ def mail_server(credentials, tls, monkeypatch):
                 command = " ".join([verb.upper(), *rest])
                 state["commands"].append(command.split(" ")[0])
                 if command.startswith("EHLO"):
-                    send("250-local\r\n250-STARTTLS\r\n250 AUTH PLAIN")
+                    send("250-local\r\n250 AUTH PLAIN" if state["fail"] == "no_tls" else "250-local\r\n250-STARTTLS\r\n250 AUTH PLAIN")
                 elif command == "STARTTLS":
                     send("220 ready")
                     self.connection = server_tls.wrap_socket(self.connection, server_side=True)
@@ -79,6 +79,8 @@ def mail_server(credentials, tls, monkeypatch):
                             return
                         chunks.append(line)
                     state["messages"].append(b"".join(chunks))
+                    if state["fail"] == "disconnect":
+                        return
                     send("250 queued")
                 elif command == "QUIT":
                     send("221 bye")
@@ -216,6 +218,20 @@ def test_auth_failure_is_sanitized(mail_server):
         asyncio.run(mail.send_mail("friend@example.test", "Hello", "Body"))
     assert "test-secret" not in str(caught.value)
     assert not mail_server["messages"]
+
+
+def test_smtp_requires_starttls(mail_server):
+    mail_server["fail"] = "no_tls"
+    with pytest.raises(RuntimeError):
+        asyncio.run(mail.send_mail("friend@example.test", "Hello", "Body"))
+    assert "AUTH" not in mail_server["commands"] and not mail_server["messages"]
+
+
+def test_uncertain_send_is_not_retried(mail_server):
+    mail_server["fail"] = "disconnect"
+    with pytest.raises(RuntimeError, match="Check sent mail"):
+        asyncio.run(mail.send_mail("friend@example.test", "Hello", "Body"))
+    assert len(mail_server["messages"]) == 1
 
 
 @pytest.mark.parametrize("recipient", ["", "invalid", "@host", "name@", "a@b\r\nBcc: c@d"])
