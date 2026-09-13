@@ -42,6 +42,7 @@ struct ChatView: View {
     @State private var settings = false
     @State private var takeover: JobCard?
     @State private var followBottom = true
+    @State private var smokeSent = false
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -99,6 +100,14 @@ struct ChatView: View {
                 Button("OK") { model.error = nil }
             } message: { Text(model.error ?? "") }
             .onAppear { settings = !model.connection.configured }
+            .onChange(of: model.connected) { _, connected in
+                #if DEBUG
+                if connected, !smokeSent, let prompt = ProcessInfo.processInfo.environment["OLA_SMOKE_PROMPT"], !prompt.isEmpty {
+                    smokeSent = true; model.draft = prompt
+                    Task { await model.send() }
+                }
+                #endif
+            }
         }
     }
     private var jobStrip: some View {

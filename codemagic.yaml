@@ -19,9 +19,12 @@ workflows:
         script: |
           set -euo pipefail
           xcodebuild -project app/Ola.xcodeproj -scheme Ola -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/Ola.xcarchive CODE_SIGNING_ALLOWED=NO archive 2>&1 | tee ios-archive.log
+      - name: Launch app and capture simulator screens
+        script: bash app/Tools/simulator_smoke.sh
     artifacts:
       - core-tests.log
       - ios-build.log
       - ios-archive.log
       - build/ios/Build/Products/Debug-iphonesimulator/Ola.app
       - build/Ola.xcarchive
+      - build/screenshots/*.png

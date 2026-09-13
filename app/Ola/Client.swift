@@ -115,7 +115,15 @@ final class AppModel: ObservableObject {
     var canSend: Bool { connected && !sending && !uploading && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty) }
     func words(_ de: String, _ en: String) -> String { copy(language, de, en) }
 
-    init() { restore() }
+    init() {
+        #if DEBUG
+        let env = ProcessInfo.processInfo.environment
+        if let token = env["OLA_SMOKE_TOKEN"], !token.isEmpty {
+            connection = Connection(server: env["OLA_SMOKE_SERVER"] ?? connection.server, token: token)
+        }
+        #endif
+        restore()
+    }
     private var cacheURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ola-" + connection.storageKey + ".json")
