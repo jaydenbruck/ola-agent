@@ -102,6 +102,21 @@ def capability(case):
 def proves(case):
     """Test names are evidence identifiers; descriptions stay limited to what tests assert."""
     descriptions = {
+        "whatsapp_send_confirms_new_receipt": "Sends the exact text once and confirms a new message ID with a send receipt",
+        "whatsapp_read_loaded_messages": "Reads loaded chat messages without sending anything",
+        "whatsapp_read_chat_list": "Reads the visible chat list without sending anything",
+        "whatsapp_qr_requests_takeover": "Requests QR takeover before trying to open or send a chat",
+        "whatsapp_resume_uses_same_page": "Continues on the same page after linking",
+        "whatsapp_duplicate_contact_does_not_send": "Does not send when two contacts have the same name",
+        "whatsapp_missing_contact_does_not_send": "Does not send to a missing contact",
+        "whatsapp_unconfirmed_send_is_not_retried": "Does not retry a send without a new receipt",
+        "whatsapp_changed_recipient_does_not_send": "Stops if the selected recipient changes before sending",
+        "whatsapp_missing_send_control_does_not_send": "Does not guess when the send button is missing",
+        "whatsapp_unready_page_is_not_linked": "An unfinished page load is not mistaken for a linked account",
+        "whatsapp_rejects_missing_message": "Rejects an empty contact or message before opening the browser",
+        "whatsapp_emits_observed_steps": "Each reported action has a page image captured after it",
+        "live_whatsapp_qr_takeover": "The real WhatsApp QR page provides a takeover request and image",
+        "live_whatsapp_send_and_read": "A real send receipt and matching message ID confirm the chat round trip",
         "junit_outcomes": "Keeps passes, failures, skips and setup errors distinct",
         "secrets_redacted": "Removes configured secrets and access tokens from saved evidence",
         "environment_precedence": "Preserves explicit environment settings when loading a file",
@@ -131,6 +146,8 @@ def reports(data):
     history = ("The first real WhatsApp visit showed a browser compatibility screen with Playwright's default "
                "headless identity. Using a desktop Chrome identity reached the real QR linking page. The browser lane "
                "was given that finding so linking and takeover use the same persistent session. No message was sent in that probe. "
+               "The first local WhatsApp run had 17 passes and one fixture failure: resetting a page redeclared its JavaScript variables. "
+               "We scoped the fixture script to each page load, then all 18 WhatsApp checks passed. "
                "The founder removed email and Calendar from scope; their tests are excluded from this report.")
     limits = ["WhatsApp needs one QR linking step and an explicitly configured test contact for a live send; a QR screen is not a sent message.",
               "The integrations are WhatsApp, Lieferando, Uber and LinkedIn. Sign-in walls or blocked pages do not prove completed errands.",
