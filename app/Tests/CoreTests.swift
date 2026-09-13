@@ -2,6 +2,11 @@ import XCTest
 @testable import OlaCore
 
 final class CoreTests: XCTestCase {
+    func testSpeechRemovesMarkdownWithoutDroppingWords() {
+        XCTAssertEqual(SpeechText.plain("# Hallo\n- **Guten** Tag\n1. [Hier](https://example.com)\n```swift\nCode\n```"), "Hallo\nGuten Tag\nHier")
+        XCTAssertEqual(SpeechText.plain(" **Hello** and _welcome_! "), "Hello and welcome!")
+        XCTAssertEqual(SpeechText.plain("• `code` und snake_case\n> https://example.com\nText"), "code und snake_case\n \nText")
+    }
     func testShutdownCommentRequestsReconnectWithoutChangingCursor() {
         let bytes = Data("id: 42\ndata: saved\n\n: connected\n\n: keep\n\n: bye\r\n\r\n".utf8)
         for split in 0...bytes.count {
@@ -21,7 +26,7 @@ final class CoreTests: XCTestCase {
     }
     func testPublicDoorPrefixOnEveryRoute() {
         let base = URL(string: "https://api.tryola.ai/agent/")!
-        for route in ["/chat", "/events/thread", "/jobs?thread_id=thread&all=1", "/jobs/one/frame.jpg?t=2", "/jobs/one/input", "/jobs/one/resume", "/jobs/one/cancel", "/attachments"] {
+        for route in ["/chat", "/speak", "/events/thread", "/jobs?thread_id=thread&all=1", "/jobs/one/frame.jpg?t=2", "/jobs/one/input", "/jobs/one/resume", "/jobs/one/cancel", "/attachments"] {
             XCTAssertEqual(ServiceURL.resolve(base: base, path: route)?.absoluteString, "https://api.tryola.ai/agent" + route)
         }
         XCTAssertEqual(ServiceURL.resolve(base: base, path: "/agent/jobs/one/frame.jpg")?.path, "/agent/jobs/one/frame.jpg")

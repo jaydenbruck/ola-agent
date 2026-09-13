@@ -1,5 +1,17 @@
 import Foundation
 
+enum SpeechText {
+    static func plain(_ text: String) -> String {
+        let rules = [(#"(?s)```.*?```"#, " "), (#"`([^`]*)`"#, "$1"),
+            (#"!?\[([^\]]*)\]\([^)]*\)"#, "$1"), (#"<https?://[^>]+>"#, " "), (#"https?://\S+"#, " "),
+            (#"(?m)^\s{0,3}#{1,6}\s+"#, ""), (#"(?m)^\s*(?:[-*+•]|\d+[.)])\s+"#, ""),
+            (#"(?s)(\*\*|__)(.*?)\1"#, "$2"), (#"(?s)(?<!\w)[*_](.+?)[*_](?!\w)"#, "$1"),
+            (#"(?m)^\s*>\s?"#, ""), (#"[ \t]+"#, " "), (#"\n{2,}"#, "\n")]
+        return rules.reduce(text) { $0.replacingOccurrences(of: $1.0, with: $1.1, options: .regularExpression) }
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 struct SSEMessage: Equatable {
     var id: String?
     var event: String?

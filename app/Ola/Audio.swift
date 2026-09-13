@@ -4,40 +4,65 @@ import NaturalLanguage
 import SwiftUI
 
 @MainActor
-final class ReplyVoice: NSObject, AVSpeechSynthesizerDelegate {
+final class ReplyVoice {
     private let synthesizer = AVSpeechSynthesizer()
-    override init() { super.init(); synthesizer.delegate = self }
-    private var waiting: [(String, String)] = []
-    var recording = false {
-        didSet {
-            if !recording { let replies = waiting; waiting = []; for reply in replies { speak(reply.0, fallback: reply.1) } }
-        }
+    private var player: AVAudioPlayer?
+    private var waiting: [(String, String, API)] = []
+    private var worker: Task<Void, Never>?
+    private var generation = UUID()
+    var recording = false { didSet { if !recording { drain() } } }
+
+    func speak(_ text: String, fallback: String, api: API) {
+        let plain = SpeechText.plain(text)
+        guard !plain.isEmpty else { return }
+        let recognizer = NLLanguageRecognizer(); recognizer.processString(plain)
+        waiting.append((plain, recognizer.dominantLanguage?.rawValue ?? fallback, api))
+        drain()
     }
-    func speak(_ text: String, fallback: String) {
-        if recording { waiting.append((text, fallback)); return }
-        let recognizer = NLLanguageRecognizer()
-        recognizer.processString(text)
-        let language = recognizer.dominantLanguage?.rawValue ?? fallback
-        let plain = (try? AttributedString(markdown: text)).map { String($0.characters) } ?? text
-        let utterance = AVSpeechUtterance(string: plain)
-        utterance.voice = AVSpeechSynthesisVoice(language: language)
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-            synthesizer.speak(utterance)
-        } catch { /* Text remains available even if another app owns audio. */ }
+    private func activate() throws {
+        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try AVAudioSession.sharedInstance().setActive(true)
     }
-    func stop() {
-        waiting = []
-        synthesizer.stopSpeaking(at: .immediate)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-    }
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in
-            if !self.synthesizer.isSpeaking && !self.recording {
-                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    private func drain() {
+        guard !recording, worker == nil, !waiting.isEmpty else { return }
+        let epoch = generation
+        worker = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if self.generation == epoch {
+                    self.worker = nil; self.player = nil
+                    if !self.recording { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
+                }
+            }
+            while !self.waiting.isEmpty && !self.recording && !Task.isCancelled {
+                let (text, language, api) = self.waiting.removeFirst()
+                do {
+                    let body = try JSONSerialization.data(withJSONObject: ["text": text, "language": language])
+                    let (data, response) = try await URLSession.shared.data(for: api.request("/speak", method: "POST", body: body))
+                    guard !Task.isCancelled, self.generation == epoch else { return }
+                    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw ClientError.response((response as? HTTPURLResponse)?.statusCode ?? 0) }
+                    let audio = try AVAudioPlayer(data: data)
+                    try self.activate(); self.player = audio
+                    guard audio.play() else { throw ClientError.rejected }
+                    while audio.isPlaying { try await Task.sleep(for: .milliseconds(100)) }
+                } catch {
+                    guard !Task.isCancelled, self.generation == epoch else { return }
+                    self.player?.stop(); self.player = nil
+                    let utterance = AVSpeechUtterance(string: text)
+                    utterance.voice = AVSpeechSynthesisVoice(language: language)
+                    try? self.activate(); self.synthesizer.speak(utterance)
+                    do {
+                        try await Task.sleep(for: .milliseconds(100))
+                        while self.synthesizer.isSpeaking { try await Task.sleep(for: .milliseconds(100)) }
+                    } catch { return }
+                }
             }
         }
+    }
+    func stop() {
+        generation = UUID(); worker?.cancel(); worker = nil; waiting = []
+        player?.stop(); player = nil; synthesizer.stopSpeaking(at: .immediate)
+        if !recording { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
     }
 }
 

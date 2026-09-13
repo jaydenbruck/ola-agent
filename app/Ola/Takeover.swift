@@ -1,17 +1,25 @@
 import SwiftUI
 import UIKit
 
+enum FrameDecoder {
+    static func decode(_ data: Data) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) { UIImage(data: data)?.preparingForDisplay() }.value
+    }
+}
+
 struct AuthenticatedFrame: View {
     @EnvironmentObject private var model: AppModel
     let path: String
     @State private var image: UIImage?
+    @State private var lastFrame: Data?
     var body: some View {
         Group {
             if let image { Image(uiImage: image).resizable().scaledToFit() }
             else { Text(model.words("Kein Bildschirmbild verfügbar", "No screen image available")).font(.caption).foregroundStyle(Palette.secondary).frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.task(id: path) {
-            image = nil
-            if let data = try? await model.api.data(path), !Task.isCancelled { image = UIImage(data: data) }
+            guard let data = try? await model.api.data(path), data != lastFrame, !Task.isCancelled,
+                  let decoded = await FrameDecoder.decode(data), !Task.isCancelled else { return }
+            image = decoded; lastFrame = data
         }
     }
 }
@@ -47,8 +55,11 @@ final class TakeoverSession: ObservableObject {
             let data = try await api.data(path)
             try Task.checkCancellation()
             guard !stopped else { return }
-            guard let image = UIImage(data: data) else { throw ClientError.image }
-            if data != lastFrame { self.image = image; lastFrame = data; frameVersion += 1 }
+            if data == lastFrame { frameUnavailable = false; return }
+            guard let image = await FrameDecoder.decode(data) else { throw ClientError.image }
+            try Task.checkCancellation()
+            guard !stopped else { return }
+            self.image = image; lastFrame = data; frameVersion += 1
             frameUnavailable = false
         } catch { if !Task.isCancelled && !stopped { frameUnavailable = true } }
     }

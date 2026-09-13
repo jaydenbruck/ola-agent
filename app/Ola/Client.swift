@@ -203,7 +203,7 @@ final class AppModel: ObservableObject {
                             do { let event = try JSONDecoder().decode(WireEvent.self, from: Data(message.data.utf8))
                                 let reply = self.state.reduce(event)
                                 self.state.cursor = message.id
-                                if self.speaker, let reply, !reply.isEmpty { self.voice.speak(reply, fallback: self.language) }
+                                if self.speaker, let reply, !reply.isEmpty { self.voice.speak(reply, fallback: self.language, api: client) }
                                 self.scheduleSave()
                             }
                         }
@@ -251,6 +251,7 @@ final class AppModel: ObservableObject {
     }
     func send() async {
         guard canSend else { return }
+        voice.stop()
         let text = draft, photos = attachments, generation = epoch
         sending = true; draft = ""; attachments = []
         state.addMember(text: text, attachments: photos); persist()
