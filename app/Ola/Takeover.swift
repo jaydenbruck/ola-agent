@@ -90,6 +90,21 @@ final class TakeoverSession: ObservableObject {
     func close() { stopped = true; queue?.cancel(); queue = nil }
 }
 
+private struct TouchFeedback: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var fading = false
+    var body: some View {
+        ZStack {
+            Circle().stroke(.white, lineWidth: 4)
+            Circle().stroke(Palette.ink, lineWidth: 2)
+            Circle().fill(Palette.ink).frame(width: 6, height: 6)
+        }.frame(width: 28, height: 28)
+            .scaleEffect(reduceMotion ? 1 : fading ? 1.6 : 0.7).opacity(fading ? 0 : 1)
+            .onAppear { withAnimation(.easeOut(duration: 0.4)) { fading = true } }
+            .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
 struct TakeoverView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -98,6 +113,9 @@ struct TakeoverView: View {
     @StateObject private var session = TakeoverSession()
     @State private var keyboard = false
     @State private var typed = ""
+    @State private var touchPoint: CGPoint?
+    @State private var touchID = UUID()
+    @GestureState private var scrollOrigin: CGPoint?
     @FocusState private var typing: Bool
     let job: JobCard
     private var currentJob: JobCard {
@@ -145,6 +163,7 @@ struct TakeoverView: View {
                     if session.frameUnavailable {
                         VStack { Text(model.words("Bildschirm gerade nicht erreichbar", "Screen currently unavailable")).font(.caption).padding(8).background(.regularMaterial); Spacer() }
                     }
+                    if let point = touchPoint { TouchFeedback().id(touchID).position(point).allowsHitTesting(false) }
                 }
                 .animation(reduceMotion ? nil : Palette.frameFade, value: session.frameVersion)
                 .contentShape(Rectangle())
@@ -152,13 +171,19 @@ struct TakeoverView: View {
                     guard session.image != nil, !session.frameUnavailable,
                           let point = FrameGeometry.point(x: value.location.x, y: value.location.y,
                                                           width: geometry.size.width, height: geometry.size.height) else { return }
+                    showTouch(value.location)
                     input(["kind": "tap", "x": point.0, "y": point.1])
                 })
-                .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { value in
+                .simultaneousGesture(DragGesture(minimumDistance: 20)
+                    .updating($scrollOrigin) { value, origin, _ in if origin == nil { origin = value.startLocation } }
+                    .onEnded { value in
                     guard session.image != nil, !session.frameUnavailable else { return }
                     let scale = min(geometry.size.width / 390, geometry.size.height / 844)
                     input(["kind": "scroll", "dy": -value.translation.height / max(scale, 0.01)])
                 })
+                .onChange(of: scrollOrigin) { _, point in
+                    if let point, session.image != nil, !session.frameUnavailable { showTouch(point) }
+                }
                 .accessibilityLabel(model.words("Live-Bildschirm. Tippen oder wischen, um die Seite zu bedienen.", "Live screen. Tap or swipe to control the page."))
                 .accessibilityAction(named: Text(model.words("Nach unten scrollen", "Scroll down"))) { input(["kind": "scroll", "dy": 500]) }
                 .accessibilityAction(named: Text(model.words("Nach oben scrollen", "Scroll up"))) { input(["kind": "scroll", "dy": -500]) }
@@ -178,6 +203,7 @@ struct TakeoverView: View {
         .onDisappear { typed = ""; session.close() }
     }
     private func input(_ body: [String: Any]) { session.input(api: model.api, jobID: job.id, body: body, language: model.language) }
+    private func showTouch(_ point: CGPoint) { touchPoint = point; touchID = UUID() }
     private func sendTyped() {
         guard !typed.isEmpty else { return }
         input(["kind": "type", "text": typed]); typed = ""
