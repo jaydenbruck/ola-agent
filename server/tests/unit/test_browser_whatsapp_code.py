@@ -74,3 +74,27 @@ async def test_tool_result_forwards_code_through_the_registry(sites, fresh_brows
     r = await browser.run("wa-code-7", {"action": "needs_you", "reason": "x"}, lang="en")
     tr = normalize(r)
     assert tr.code == "ABCD-2345" and tr.code_hint and tr.needs_you["code"] == "ABCD-2345"
+
+
+async def test_whatsapp_takes_the_phone_link_path_and_never_types_the_number(sites, fresh_browser):
+    """On the QR screen the tool clicks 'Link with phone number', reaches the phone-number input,
+    and does NOT type the member's number (the member enters their own in the takeover). After the
+    member's number the code screen shows and the code is read (founder ruling: use the device code)."""
+    await browser.run("wa-phone-1", {"action": "goto", "url": sites.url("/wa_qr.html")})
+    s = browser._sessions["wa-phone-1"]
+    took = await browser.whatsapp_start_phone_link(s.page)
+    assert took is True, "the phone-number path must be taken over the QR"
+    field = s.page.locator('input[type=tel]')
+    assert await field.is_visible()
+    assert await field.input_value() == "", "the tool must never type the member's phone number"
+    # the member types their own number and continues -> WhatsApp shows the code
+    await field.fill("+49 170 0000000")
+    await s.page.click("#weiter")
+    assert await browser._whatsapp_link_code(s.page) == "ABCD-2345"
+
+
+async def test_whatsapp_phone_link_returns_false_when_the_control_is_missing(sites, fresh_browser):
+    """A QR screen without a phone-number control -> False, so the caller falls back to the QR."""
+    await browser.run("wa-phone-2", {"action": "goto", "url": sites.url("/signin.html")})
+    s = browser._sessions["wa-phone-2"]
+    assert await browser.whatsapp_start_phone_link(s.page, timeout_ms=1500) is False

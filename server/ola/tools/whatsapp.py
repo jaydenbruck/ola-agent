@@ -52,8 +52,24 @@ async def _open(browser, job_id, lang, emit):
         result.text = _words(lang, "WhatsApp ist noch nicht bereit. Die aktuelle Seite ist sichtbar.", "WhatsApp is not ready yet. The current page is visible.") + "\n" + result.text
         return page, result
     if not linked:
-        reason = _words(lang, "Scanne bitte den QR-Code mit WhatsApp, um dein Konto zu verknüpfen.",
-                        "Scan the QR code with WhatsApp to link your account.")
+        # Founder ruling: use the DEVICE-CODE path, not the QR. Open "Link with phone number" and
+        # hand over so the member enters THEIR OWN number; WhatsApp then shows an 8-char code that
+        # browser.py reads and the app displays. Fall back to the QR only if the control is missing.
+        took_phone = False
+        try:
+            async with browser.job_lock(job_id):
+                took_phone = await browser.whatsapp_start_phone_link(page)
+        except Exception:
+            took_phone = False
+        if took_phone:
+            reason = _words(lang,
+                            "Gib hier deine eigene Telefonnummer ein und tippe auf Weiter. WhatsApp zeigt dann einen "
+                            "Code, den ich dir anzeige - gib ihn in WhatsApp unter 'Verknüpfte Geräte' ein.",
+                            "Enter your own phone number here and tap Next. WhatsApp will then show a code that I'll "
+                            "display for you - enter it in WhatsApp under 'Linked Devices'.")
+        else:
+            reason = _words(lang, "Scanne bitte den QR-Code mit WhatsApp, um dein Konto zu verknüpfen.",
+                            "Scan the QR code with WhatsApp to link your account.")
         return page, await browser.run(job_id, {"action": "needs_you", "reason": reason}, lang=lang)
     return page, None
 

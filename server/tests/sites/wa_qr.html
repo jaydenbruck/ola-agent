@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>WhatsApp Web</title><link rel="stylesheet" href="style.css">
+<style>canvas{background:repeating-linear-gradient(45deg,#111,#111 6px,#fff 6px,#fff 12px);width:220px;height:220px;display:block;margin:16px 0}
+.code{display:flex;gap:6px;margin:16px 0}.code span{display:inline-flex;align-items:center;justify-content:center;width:34px;height:44px;border:1px solid #14532d;border-radius:8px;font-size:22px;font-weight:700}
+button{width:auto;display:inline-block;padding:10px 16px}</style>
+</head>
+<body>
+<header><strong>WhatsApp</strong></header>
+<main>
+<section id="qr">
+<h1>Log into WhatsApp Web</h1>
+<canvas aria-label="Scan this QR code to link a device!"></canvas>
+<p>Scan this QR code with your phone.</p>
+<button id="phone-link" type="button">Link with phone number</button>
+</section>
+<section id="phone" hidden>
+<h1>Enter phone number</h1>
+<label for="num">Phone number</label>
+<input id="num" type="tel" aria-label="Type your phone number" placeholder="+49 …">
+<button id="weiter" type="button">Next</button>
+</section>
+<section id="codebox" hidden>
+<h1>Enter code on phone</h1>
+<div class="code" id="link-code" aria-label="Link code" role="group"></div>
+<p>WhatsApp, Settings, Linked Devices, Link a Device.</p>
+</section>
+<script>
+document.getElementById('phone-link').onclick = () => {
+  document.getElementById('qr').hidden = true;
+  document.getElementById('phone').hidden = false;   // the phone-number input appears
+};
+document.getElementById('weiter').onclick = () => {
+  // the member entered their own number; WhatsApp shows the 8-char code
+  document.getElementById('phone').hidden = true;
+  const box = document.getElementById('codebox'); box.hidden = false;
+  const cells = document.getElementById('link-code');
+  for (const ch of "ABCD2345"){ const s = document.createElement('span'); s.textContent = ch; cells.appendChild(s); }
+};
+</script>
+</main>
+</body></html>

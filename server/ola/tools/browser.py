@@ -140,12 +140,14 @@ SITE_FACTS: dict[str, dict[str, str]] = {
     "web.whatsapp.com": {
         "sign_in": "https://web.whatsapp.com/",
         "facts": (
-            "WhatsApp Web. A page showing a QR code ('Mit Telefon verknüpfen' / 'Link with phone') is the sign-in: use "
-            "needs_you so the member scans it with their phone; never try to type there. Once linked: the chat list is on the "
-            "left with the search box 'Suchen oder neuen Chat beginnen' at the top; type the contact's name there and click the "
-            "matching chat row. The message composer is the text box at the bottom of the open chat ('Nachricht eingeben'); "
-            "type the message, then press Enter or click the send button. A sent message appears at the bottom of the chat with "
-            "ticks. Never send to a contact that did not match the name exactly."
+            "WhatsApp Web. When not linked, use the DEVICE-CODE path, not the QR: open 'Mit Telefonnummer verknüpfen' / "
+            "'Link with phone number' (it may sit under a menu on the QR screen), then use needs_you so the member enters "
+            "THEIR OWN phone number in the takeover; WhatsApp then shows an 8-character code that the app displays for them to "
+            "enter in WhatsApp > Linked Devices. The tool never types the number. Fall back to the QR (needs_you) only if the "
+            "phone-number control cannot be found. Once linked (the chat list #pane-side appears): the search box 'Suchen oder "
+            "neuen Chat beginnen' is at the top left; type the contact's name and click the matching chat row. The composer is "
+            "the box at the bottom of the open chat ('Nachricht eingeben'); type, then Enter or the send button. A sent message "
+            "shows at the bottom with ticks. Never send to a contact that did not match the name exactly."
         ),
     },
     "linkedin.com": {
@@ -771,6 +773,52 @@ async def _whatsapp_link_code(page: Any) -> Optional[str]:
     return "-".join(code[i:i + 4] for i in range(0, len(code), 4))
 
 
+_PHONE_LINK_RE = re.compile(r"telefonnummer verkn|mit telefonnummer|link with phone|phone number instead|verkn.*telefon", re.I)
+_MENU_OPENER_RE = re.compile(r"^(mehr|more|optionen|options|men[uü]|weitere)", re.I)
+_PHONE_INPUT_SEL = ('input[type="tel"], input[inputmode="tel"], input[aria-label*="phone" i], '
+                    'input[aria-label*="nummer" i], input[aria-label*="telefon" i], input[name*="phone" i]')
+
+
+async def whatsapp_start_phone_link(page: Any, timeout_ms: int = 8000) -> bool:
+    """On WhatsApp Web's unlinked (QR) screen, take the phone-number / device-code path instead of
+    the QR: click 'Mit Telefonnummer verknüpfen' / 'Link with phone number' (a button or link, DE or
+    EN, possibly behind an overflow menu on the QR screen) and wait for the phone-number input (or,
+    if it is already there, the code) to appear. Returns True when the phone-number screen is
+    reached, False when the control cannot be found (the caller then falls back to the QR). NEVER
+    types the member's phone number (the member enters their own in the takeover). The caller holds
+    job_lock(job_id)."""
+    ctrl = page.get_by_role("button", name=_PHONE_LINK_RE).or_(page.get_by_role("link", name=_PHONE_LINK_RE))
+
+    async def visible() -> bool:
+        try:
+            return await ctrl.first.is_visible()
+        except Exception:  # noqa: BLE001
+            return False
+
+    if not await visible():
+        # it may sit under an overflow / kebab menu on the QR screen: open a likely one, then look again
+        openers = [
+            page.get_by_role("button", name=_MENU_OPENER_RE),
+            page.locator('[aria-label*="Menü" i], [aria-label*="menu" i], [data-icon="menu"], [data-icon="more-refreshed"]'),
+        ]
+        for opener in openers:
+            try:
+                await opener.first.click(timeout=1500)
+                if await visible():
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+    try:
+        await ctrl.first.click(timeout=3000)
+    except Exception:  # noqa: BLE001
+        return False
+    try:
+        await page.locator(_PHONE_INPUT_SEL).first.wait_for(state="visible", timeout=timeout_ms)
+        return True
+    except Exception:  # noqa: BLE001
+        return bool(await _whatsapp_link_code(page))  # the code screen may already be showing
+
+
 def _code_hint(lang: str) -> str:
     """One line telling the member where to type the code. English by default; German when the
     member writes German."""
@@ -1373,7 +1421,7 @@ def mount(app: Any, auth: Optional[Callable[..., Any]] = None) -> None:
 
 __all__ = [
     "TOOL", "ACTIONS", "SITE_FACTS", "DESKTOP_SITES", "BrowserResult", "run", "after_resume", "member_input", "fresh_frame",
-    "observe", "page_for_job", "job_lock",
+    "observe", "page_for_job", "job_lock", "whatsapp_start_phone_link",
     "latest_frame", "frame_url", "close_job", "shutdown", "mount", "format_page", "facts_line", "site_of",
     "site_facts_for_prompt",
 ]
