@@ -106,8 +106,11 @@ SITE_FACTS: dict[str, dict[str, str]] = {
         "cookie_reject": "Nur notwendige",
         "facts": (
             "The customer sign-in is 'Anmelden' in the header, or https://www.lieferando.de/login. The footer's "
-            "'Ein Restaurant anmelden' / partner links are the restaurant sign-up: never the way in. To order: pick the "
-            "delivery address in the start page's address field, open a restaurant, add the dish to the cart, stop before payment."
+            "'Ein Restaurant anmelden' / partner links are the restaurant sign-up: never the way in. To order: open the "
+            "restaurant list for the place directly, https://www.lieferando.de/lieferservice/essen/<ort>-<plz> (e.g. dreieich-63303); "
+            "the start page's 'Ort suchen' panel is slow. Close the app-download dialog ('Schließen'). Open a restaurant "
+            "(links go to /speisekarte/...), tap the dish, add it to the cart ('In den Warenkorb'), stop before payment; the "
+            "exact delivery address is asked at checkout."
         ),
     },
     "kleinanzeigen.de": {
@@ -148,6 +151,7 @@ DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 _JOIN_URL = re.compile(r"/(signup|sign-up|join|register|registrieren|cold-join)(/|\?|\.|$)", re.I)
 _REGIONS = ("dialog", "header", "main", "footer")
+_LOGIN_WALL = re.compile(r"melde dich an|anmelden, um|einloggen, um|log ?in to|sign ?in to|bitte anmelden|please (sign|log) in|wie lautet deine telefonnummer", re.I)
 
 
 @dataclass
@@ -177,7 +181,7 @@ SNAPSHOT_JS = r"""
     return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0';
   };
   const secret = (el) => (el.type || '') === 'password' || /one-time-code|current-password|new-password/.test(el.autocomplete || '');
-  const DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [id*=cookie i], [class*=cookie i], [id*=consent i], [class*=consent i], [id*=onetrust i], [id*=usercentrics i], [id*=didomi i], [class*=cmp i], [class*=modal i]';
+  const DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [id*=cookie i], [class*=cookie i], [id*=consent i], [class*=consent i], [id*=onetrust i], [id*=usercentrics i], [id*=didomi i], [class*=cmp-container i], [id*=cmp-container i], [class*=modal-open i], [class*=modal--open i], [class*=is-open i][class*=modal i]';
   const covers = (d) => {
     const r = d.getBoundingClientRect(); const s = getComputedStyle(d);
     return s.position === 'fixed' || s.position === 'sticky' || r.width * r.height > innerWidth * innerHeight * 0.05;
@@ -222,6 +226,8 @@ SNAPSHOT_JS = r"""
     }
   };
   walk(document, 0);
+  const uniq = new Set(); const found1 = found.filter(el => !uniq.has(el) && uniq.add(el));
+  found.length = 0; found.push(...found1);
   const PICKER_WORDS = /adresse|address|abhol|pickup|ziel|drop|destination|ort\b|stadt|city|plz|wohin|where|standort|location|street|straße|strasse/i;
   const out = []; let hasPassword = false, hasCode = false;
   for (const el of found) {
@@ -273,7 +279,9 @@ SNAPSHOT_JS = r"""
   const captcha = [...document.querySelectorAll('iframe[src*=recaptcha], iframe[src*=hcaptcha], iframe[src*=turnstile], iframe[src*=arkose], .g-recaptcha, .h-captcha, [id*=captcha i]')]
     .some(el => { const r = el.getBoundingClientRect(); return r.width > 60 && r.height > 60 && vis(el); });
   const text = clean(document.body ? document.body.innerText.replace(/\n{2,}/g, '\n') : '');
-  return {url: location.href, title: document.title, ready: document.readyState, elements: out, text, dialog, hasPassword, hasCode, captcha,
+  // a bot-check interstitial (Cloudflare and friends): the page is not the site yet
+  const challenge = /just a moment|nur einen moment|sicherheitsüberprüfung|checking your browser|verify you are human|attention required/i.test(document.title + ' ' + text.slice(0, 500));
+  return {url: location.href, title: document.title, ready: document.readyState, elements: out, text, dialog, hasPassword, hasCode, captcha, challenge,
           scrollY: Math.round(scrollY), scrollH: Math.round(document.documentElement.scrollHeight), viewH: innerHeight, next: S.next};
 }
 """
@@ -286,7 +294,7 @@ REF_BOX_JS = r"""(ref) => { const el = (window.__ola || {refs: {}}).refs[ref]; i
 # is not a place ("search for …", "use my location", the map pin).
 SUGGESTIONS_JS = r"""
 (typed) => {
-  const norm = (s) => String(s || '').toLowerCase().replace(/ß/g, 'ss').replace(/stra(ss|ß)e/g, 'str').replace(/str\./g, 'str').replace(/[^a-z0-9äöü ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const norm = (s) => String(s || '').toLowerCase().replace(/ß/g, 'ss').replace(/stra(ss|ß)e/g, 'str').replace(/str\./g, 'str').replace(/[^a-z0-9äöü ]+/g, ' ').replace(/\s+/g, ' ').replace(/(\d+) ([a-z])(?= |$)/g, '$1$2').trim();
   const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 4 || r.height < 4) return false; const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0'; };
   const t = norm(typed); const words = t.split(' ').filter(w => w.length > 1);
@@ -356,7 +364,7 @@ DISMISS_JS = r"""
 () => {
   const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim();
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false; const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0'; };
-  const DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [id*=cookie i], [class*=cookie i], [id*=consent i], [class*=consent i], [id*=onetrust i], [id*=usercentrics i], [id*=didomi i], [class*=cmp i], [class*=modal i]';
+  const DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [id*=cookie i], [class*=cookie i], [id*=consent i], [class*=consent i], [id*=onetrust i], [id*=usercentrics i], [id*=didomi i], [class*=cmp-container i], [id*=cmp-container i], [class*=modal-open i], [class*=modal--open i], [class*=is-open i][class*=modal i]';
   const covers = (d) => { const r = d.getBoundingClientRect(); const s = getComputedStyle(d); return s.position === 'fixed' || s.position === 'sticky' || r.width * r.height > innerWidth * innerHeight * 0.05; };
   const boxes = [];
   const collect = (root, depth) => { for (const el of root.querySelectorAll(DIALOG)) if (vis(el) && covers(el)) boxes.push(el); if (depth > 2) return; for (const h of root.querySelectorAll('*')) if (h.shadowRoot) collect(h.shadowRoot, depth + 1); };
@@ -390,7 +398,7 @@ DISMISS_JS = r"""
 DIALOG_OPEN_JS = r"""
 () => {
   const vis = (el) => { const r = el.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false; const s = getComputedStyle(el); return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0'; };
-  const DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [id*=cookie i], [class*=cookie i], [id*=consent i], [class*=consent i], [id*=onetrust i], [id*=usercentrics i], [id*=didomi i], [class*=cmp i], [class*=modal i]';
+  const DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true], [id*=cookie i], [class*=cookie i], [id*=consent i], [class*=consent i], [id*=onetrust i], [id*=usercentrics i], [id*=didomi i], [class*=cmp-container i], [id*=cmp-container i], [class*=modal-open i], [class*=modal--open i], [class*=is-open i][class*=modal i]';
   const covers = (d) => { const r = d.getBoundingClientRect(); const s = getComputedStyle(d); return s.position === 'fixed' || s.position === 'sticky' || r.width * r.height > innerWidth * innerHeight * 0.05; };
   return [...document.querySelectorAll(DIALOG)].some(el => vis(el) && covers(el));
 }
@@ -699,7 +707,9 @@ def _elements_text(elements: list[dict[str, Any]]) -> str:
         if not rows:
             continue
         if region == "dialog":
-            parts.append("[dialog — a banner or modal covers the page; dismiss_dialog closes it, or click one of these]\n" + "\n".join(_element_line(e) for e in rows))
+            has_field = any(e.get("tag") in ("input", "textarea", "select") or e.get("picker") for e in rows)
+            title = "[dialog — a panel covers the page; use its field, or dismiss_dialog]" if has_field else "[dialog — a banner or modal covers the page; dismiss_dialog closes it, or click one of these]"
+            parts.append(title + "\n" + "\n".join(_element_line(e) for e in rows))
         elif region == "footer":
             more = len(rows) - FOOTER_LINES
             parts.append("[footer]\n" + "\n".join(_element_line(e) for e in rows[:FOOTER_LINES]) + (f"\n(+{more} more footer links)" if more > 0 else ""))
@@ -724,13 +734,21 @@ def format_page(snap: dict[str, Any], *, note: str = "", full_text: str = "") ->
         head.append("THIS IS A SIGN-UP PAGE, not the sign-in. Never fill it, never create an account."
                     + (f" The sign-in page is {login}; open it." if login else " Open the site's sign-in page instead."))
     if snap.get("dialog"):
-        head.append(f"A dialog is open: \"{_clip(str(snap['dialog']), 90)}\". Clear it first (dismiss_dialog prefers reject or close).")
+        in_dialog = [e for e in snap.get("elements") or [] if e.get("region") == "dialog"]
+        if any(e.get("tag") in ("input", "textarea", "select") or e.get("picker") for e in in_dialog):
+            head.append(f"A panel is open: \"{_clip(str(snap['dialog']), 90)}\" with a field in it. Use its field if that is the way forward, else dismiss_dialog.")
+        else:
+            head.append(f"A dialog is open: \"{_clip(str(snap['dialog']), 90)}\". Clear it first (dismiss_dialog prefers reject or close).")
     if snap.get("captcha"):
         head.append("A human check (captcha) is on the page: use needs_you.")
+    elif snap.get("challenge"):
+        head.append("A bot check is running (\"Nur einen Moment…\"); it usually passes by itself: wait_for the page's words for 10 s, and if it asks you to tick or tap, use needs_you.")
     elif snap.get("hasCode"):
         head.append("The page asks for a one-time code: use needs_you.")
     elif snap.get("hasPassword"):
         head.append("The page asks for a password: never type one; use needs_you and say so in one sentence.")
+    elif _LOGIN_WALL.search(f"{snap.get('dialog') or ''} {snap.get('title') or ''} {str(snap.get('text') or '')[:200]}"):
+        head.append("The page asks for a sign-in before it shows more. Use needs_you; the member signs in on their phone and you continue.")
     if snap.get("ready") not in (None, "complete", "interactive"):
         head.append("(the page is still loading; this is what it shows now)")
     sy, sh, vh = int(snap.get("scrollY") or 0), int(snap.get("scrollH") or 0), int(snap.get("viewH") or 1)
@@ -818,6 +836,7 @@ async def _do_goto(s: _Session, url: str) -> tuple[bool, str]:
             return False, f"{_host(url)} did not finish loading within {ACTION_BUDGET_S:.0f} s; this is what it shows now"
         return False, f"could not open {url}: {_clip(msg, 120)}"
     await _settle(s.page)
+    await _pass_challenge(s)
     hint = READY_HINTS.get((urlsplit(url).hostname or "").lower().removeprefix("www."))
     if hint:
         try:
@@ -826,6 +845,20 @@ async def _do_goto(s: _Session, url: str) -> tuple[bool, str]:
         except Exception:  # noqa: BLE001
             pass  # the page as it is now; the model can wait_for
     return True, ""
+
+
+CHALLENGE_JS = "() => /just a moment|nur einen moment|sicherheitsüberprüfung|checking your browser|verify you are human|attention required/i.test(document.title + ' ' + ((document.body && document.body.innerText) || '').slice(0, 500))"
+
+
+async def _pass_challenge(s: _Session, budget: float = 12.0) -> None:
+    """A bot-check interstitial usually clears by itself within seconds: give it that long, bounded."""
+    try:
+        if not await s.page.evaluate(CHALLENGE_JS):
+            return
+        await s.page.wait_for_function("!(" + CHALLENGE_JS + ")()", timeout=int(budget * 1000))
+        await _settle(s.page, 5.0)
+    except Exception:  # noqa: BLE001
+        pass  # still on the check: the snapshot says so
 
 
 async def _do_click(s: _Session, ref: str) -> tuple[bool, str]:
@@ -1131,7 +1164,7 @@ async def member_input(job_id: str, body: dict[str, Any]) -> dict[str, Any]:
                 await s.page.keyboard.press(str(body.get("key") or "Enter"))
             elif kind == "scroll":
                 await s.page.mouse.move(s.viewport["width"] / 2, s.viewport["height"] / 2)
-                await s.page.mouse.wheel(0, float(body.get("dy") or 400))
+                await s.page.mouse.wheel(0, float(body.get("dy") or 400) * k)
             else:
                 return {"ok": False, "error": "kind must be tap, type, key or scroll"}
         except Exception as e:  # noqa: BLE001
@@ -1174,8 +1207,8 @@ def mount(app: Any, auth: Optional[Callable[..., Any]] = None) -> None:
         except Exception:  # noqa: BLE001
             body = {}
         out = await member_input(job_id, body if isinstance(body, dict) else {})
-        if not out.get("ok") and out.get("error") == "no page for this job":
-            raise HTTPException(status_code=404, detail=out["error"])
+        if not out.get("ok"):
+            raise HTTPException(status_code=404 if out.get("error") == "no page for this job" else 400, detail=out.get("error") or "input failed")
         return out
 
 

@@ -68,7 +68,8 @@ async def test_member_signs_in_through_input_then_after_resume_shows_the_page(si
         res = await c.post("/jobs/take-2/input", json={"kind": "scroll", "dy": 200}, headers=h)
         assert res.json()["ok"]
         res = await c.post("/jobs/take-2/input", json={"kind": "dance"}, headers=h)
-        assert res.status_code == 200 and not res.json()["ok"]
+        assert res.status_code == 400, "a failed input is a 400, so the app stops its queue"
+
         res = await c.post("/jobs/none/input", json={"kind": "tap", "x": 1, "y": 1}, headers=h)
         assert res.status_code == 404
     after = await browser.after_resume("take-2")
