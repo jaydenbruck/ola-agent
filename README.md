@@ -6,6 +6,8 @@ Your own AI agent. You talk to it like a friend, and it does the real work for y
 in real apps, in its own browser, often several jobs at once. When a site needs you,
 it hands you the page and carries on.
 
+
+3 APPS: WHATSAPP, UBER, DELIVERY SERVICE
 ## 01 · Project overview
 
 Errands online mean too many apps, logins, and tabs. Tell Ola once, in plain words,
